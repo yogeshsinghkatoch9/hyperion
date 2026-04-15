@@ -1,0 +1,34 @@
+{
+  "name": "hyperion",
+  "version": "1.0.0",
+  "description": "Your computer, unleashed. Self-hosted universal computing platform — terminal, code runner, file manager, AI agents, system control. Access from anywhere.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "setup": "node scripts/setup.js"
+  },
+  "keywords": [
+    "computing-platform",
+    "self-hosted",
+    "terminal",
+    "code-runner",
+    "ai-agents",
+    "remote-access"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "better-sqlite3": "^11.7.0",
+    "express": "^4.21.0",
+    "multer": "^1.4.5-lts.1",
+    "node-pty": "^1.1.0",
+    "uuid": "^10.0.0",
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "vitest": "^4.1.4"
+  }
+}
