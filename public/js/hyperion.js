@@ -46,6 +46,7 @@ const NAV_GROUPS = [
     { page: 'workflows', label: 'Workflows', icon: '<path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>' },
     { page: 'skills', label: 'Skills', icon: '<path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>' },
     { page: 'plugins', label: 'Plugins', icon: '<path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/>' },
+    { page: 'chat', label: 'AI Chat', icon: '<path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z"/>' },
   ]},
   { id: 'devops', label: 'DevOps', icon: '&#9881;', items: [
     { page: 'gitclient', label: 'Git', icon: '<circle cx="18" cy="18" r="3"/><circle cx="6" cy="6" r="3"/><path d="M13 6h3a2 2 0 012 2v7"/><path d="M6 9v12"/>' },
@@ -476,50 +477,461 @@ async function doSetup() {
   }
 }
 
+/* ═══ Onboarding Wizard + Guided Tour ═══ */
+
+const OB_PROVIDERS = [
+  { id: 'ollama', name: 'Ollama', hint: 'Local models, no API key', badge: 'FREE', needsKey: false, defaultModel: 'llama3' },
+  { id: 'gemini', name: 'Google Gemini', hint: 'Free tier available', badge: 'FREE TIER', needsKey: true, defaultModel: 'gemini-2.5-flash' },
+  { id: 'openai', name: 'OpenAI', hint: 'GPT-4o, GPT-4o-mini', badge: null, needsKey: true, defaultModel: 'gpt-4o-mini' },
+  { id: 'anthropic', name: 'Claude / Anthropic', hint: 'Claude 4 Sonnet, Haiku', badge: null, needsKey: true, defaultModel: 'claude-sonnet-4-6' },
+  { id: 'xai', name: 'Grok / xAI', hint: 'Grok-2, Grok-3', badge: null, needsKey: true, defaultModel: 'grok-2' },
+];
+
+const OB_PRESETS = [
+  { id: 'devops', label: 'DevOps', icon: '🐳', desc: 'Docker, monitoring, and CI/CD', favs: ['docker', 'gitclient', 'terminal', 'monitor', 'logs', 'cronmanager'], defaultPage: 'terminal' },
+  { id: 'developer', label: 'Developer', icon: '💻', desc: 'Code, notebooks, and version control', favs: ['terminal', 'code', 'notebooks', 'snippets', 'deps', 'gitclient'], defaultPage: 'code' },
+  { id: 'sysadmin', label: 'System Admin', icon: '🖥️', desc: 'System management and networking', favs: ['system', 'processes', 'nettools', 'backups', 'vault', 'logs'], defaultPage: 'system' },
+  { id: 'general', label: 'All-Purpose', icon: '⚡', desc: 'A bit of everything', favs: ['dashboard', 'terminal', 'files', 'assistant', 'chat', 'docker'], defaultPage: 'dashboard' },
+];
+
 function showOnboarding() {
-  const main = document.getElementById('main');
-  const steps = [
-    { title: 'Welcome to Hyperion', icon: 'H', body: 'Your self-hosted computing platform is ready. Terminal, file manager, AI agents, notebooks, and 55+ developer tools — all in one place.' },
-    { title: 'Quick Tour', icon: '⚡', body: '<b>Terminal</b> — Full PTY shell in your browser<br><b>Assistant</b> — AI-powered command generation<br><b>NOVA</b> — Natural language automation<br><b>Notebooks</b> — Jupyter-like with live collaboration<br><b>Dev Tools</b> — Git, Docker, SSH, HTTP client, and more' },
-    { title: 'Choose Your Theme', icon: '◐', body: '<div style="display:flex;gap:12px;margin-top:12px"><button class="btn" onclick="_obSetTheme(\'dark\')" style="flex:1;padding:16px;background:#0f1117;color:#e0e0e0;border:2px solid var(--border);border-radius:8px"><b>Dark</b><br><span style="font-size:12px;opacity:.7">Default</span></button><button class="btn" onclick="_obSetTheme(\'light\')" style="flex:1;padding:16px;background:#f5f5f5;color:#1a1a2e;border:2px solid #ddd;border-radius:8px"><b>Light</b><br><span style="font-size:12px;opacity:.7">Easy on the eyes</span></button></div>' },
-    { title: 'You\'re All Set', icon: '✓', body: 'Press <kbd style="background:var(--bg);padding:2px 6px;border-radius:4px;border:1px solid var(--border);font:12px var(--mono)">Cmd+K</kbd> anytime to quick-launch any page.<br><br>Explore the sidebar to discover all tools.' },
-  ];
-  let step = 0;
-  function render() {
-    const s = steps[step];
-    const isLast = step === steps.length - 1;
-    main.innerHTML = `
-      <div style="display:flex;align-items:center;justify-content:center;height:100vh;background:var(--bg)">
-        <div style="width:420px;padding:36px;background:var(--bg2);border:1px solid var(--border);border-radius:12px">
-          <div style="text-align:center;margin-bottom:20px">
-            <div style="width:48px;height:48px;border-radius:50%;background:var(--green);color:#000;display:inline-flex;align-items:center;justify-content:center;font:700 22px var(--sans)">${s.icon}</div>
-            <h2 style="font:700 20px var(--sans);margin-top:12px">${s.title}</h2>
+  let _obStep = 0;
+  let _obProvider = null;
+  let _obApiKey = '';
+  let _obPreset = OB_PRESETS[3]; // default all-purpose
+  let _obTheme = 'dark';
+  let _obProviderTested = false;
+
+  function _obDots() {
+    return Array.from({ length: 6 }, (_, i) =>
+      `<div class="ob-dot${i === _obStep ? ' active' : ''}"></div>`
+    ).join('');
+  }
+
+  function _obRender() {
+    // Remove existing overlay
+    const old = document.querySelector('.ob-overlay');
+    if (old) old.remove();
+
+    const overlay = document.createElement('div');
+    overlay.className = 'ob-overlay';
+
+    let body = '';
+    switch (_obStep) {
+      case 0: // Welcome
+        body = `
+          <div style="text-align:center">
+            <div class="ob-icon">H</div>
+            <div class="ob-title">Welcome to Hyperion</div>
+            <div class="ob-sub">Your self-hosted computing platform with 55+ tools.<br>Let's get you set up — takes under a minute.</div>
           </div>
-          <div style="color:var(--text2);font:14px/1.7 var(--sans);margin-bottom:24px">${s.body}</div>
-          <div style="display:flex;justify-content:space-between;align-items:center">
-            <div style="display:flex;gap:6px">${steps.map((_, i) => `<div style="width:8px;height:8px;border-radius:50%;background:${i === step ? 'var(--green)' : 'var(--border)'}"></div>`).join('')}</div>
+          <div class="ob-footer">
+            <div class="ob-dots">${_obDots()}</div>
             <div style="display:flex;gap:8px">
-              ${step > 0 ? '<button class="btn" onclick="_obPrev()">Back</button>' : '<button class="btn" onclick="_obSkip()">Skip</button>'}
-              <button class="btn btn-green" onclick="${isLast ? '_obFinish()' : '_obNext()'}">
-                ${isLast ? 'Get Started' : 'Next'}
-              </button>
+              <button class="btn" onclick="_obSkip()">Skip setup</button>
+              <button class="btn btn-green" onclick="_obNext()">Get Started</button>
+            </div>
+          </div>`;
+        break;
+
+      case 1: // AI Provider
+        body = `
+          <div style="text-align:center">
+            <div class="ob-icon">🤖</div>
+            <div class="ob-title">AI Provider</div>
+            <div class="ob-sub">Choose an AI backend for chat, code generation, and automation.</div>
+          </div>
+          <div class="ob-providers">
+            ${OB_PROVIDERS.map(p => `
+              <div class="ob-prov-card${_obProvider && _obProvider.id === p.id ? ' selected' : ''}" onclick="_obSelectProvider('${p.id}')">
+                ${p.badge ? `<span class="ob-prov-badge">${p.badge}</span>` : ''}
+                <div class="prov-name">${p.name}</div>
+                <div class="prov-hint">${p.hint}</div>
+              </div>
+            `).join('')}
+          </div>
+          <div id="obProviderConfig"></div>
+          <div class="ob-footer">
+            <div class="ob-dots">${_obDots()}</div>
+            <div style="display:flex;gap:8px">
+              <button class="btn" onclick="_obPrev()">Back</button>
+              <button class="btn" onclick="_obNext()">Skip</button>
+              ${_obProvider ? `<button class="btn btn-green" onclick="_obNext()">Next</button>` : ''}
+            </div>
+          </div>`;
+        break;
+
+      case 2: // AI Intro
+        body = `
+          <div style="text-align:center">
+            <div class="ob-icon">✨</div>
+            <div class="ob-title">AI-Powered Tools</div>
+            <div class="ob-sub">Your AI assistant can do more than just chat.</div>
+          </div>
+          <div class="ob-features">
+            <div class="ob-feat-card">
+              <div class="feat-icon">⌨️</div>
+              <div><div class="feat-title">Run Commands</div><div class="feat-desc">Execute shell commands, install packages, and manage files — all from natural language.</div></div>
+            </div>
+            <div class="ob-feat-card">
+              <div class="feat-icon">🐳</div>
+              <div><div class="feat-title">Docker & Git</div><div class="feat-desc">Build containers, manage repos, review diffs, and deploy — through conversation.</div></div>
+            </div>
+            <div class="ob-feat-card">
+              <div class="feat-icon">🔄</div>
+              <div><div class="feat-title">Automation</div><div class="feat-desc">Create cron jobs, write scripts, set up monitoring, and automate workflows.</div></div>
             </div>
           </div>
-        </div>
-      </div>`;
+          <div class="ob-footer">
+            <div class="ob-dots">${_obDots()}</div>
+            <div style="display:flex;gap:8px">
+              <button class="btn" onclick="_obPrev()">Back</button>
+              <button class="btn btn-green" onclick="_obNext()">Next</button>
+            </div>
+          </div>`;
+        break;
+
+      case 3: // Workspace Preset
+        body = `
+          <div style="text-align:center">
+            <div class="ob-icon">📐</div>
+            <div class="ob-title">Workspace Preset</div>
+            <div class="ob-sub">Choose a starting layout. You can customize everything later.</div>
+          </div>
+          <div class="ob-presets">
+            ${OB_PRESETS.map(p => `
+              <div class="ob-preset-card${_obPreset.id === p.id ? ' selected' : ''}" onclick="_obSelectPreset('${p.id}')">
+                <div class="preset-icon">${p.icon}</div>
+                <div class="preset-label">${p.label}</div>
+                <div class="preset-desc">${p.desc}</div>
+              </div>
+            `).join('')}
+          </div>
+          <div class="ob-footer">
+            <div class="ob-dots">${_obDots()}</div>
+            <div style="display:flex;gap:8px">
+              <button class="btn" onclick="_obPrev()">Back</button>
+              <button class="btn btn-green" onclick="_obNext()">Next</button>
+            </div>
+          </div>`;
+        break;
+
+      case 4: // Theme
+        body = `
+          <div style="text-align:center">
+            <div class="ob-icon">◐</div>
+            <div class="ob-title">Choose Your Theme</div>
+            <div class="ob-sub">Pick a look that suits you.</div>
+          </div>
+          <div class="ob-themes">
+            <div class="ob-theme-card${_obTheme === 'dark' ? ' selected' : ''}" onclick="_obSetTheme('dark')">
+              <div class="theme-preview" style="background:#1C1917;"></div>
+              <div class="theme-label">Dark</div>
+            </div>
+            <div class="ob-theme-card${_obTheme === 'light' ? ' selected' : ''}" onclick="_obSetTheme('light')">
+              <div class="theme-preview" style="background:#F5F5F0;"></div>
+              <div class="theme-label">Light</div>
+            </div>
+            <div class="ob-theme-card${_obTheme === 'system' ? ' selected' : ''}" onclick="_obSetTheme('system')">
+              <div class="theme-preview" style="background:linear-gradient(135deg,#1C1917 50%,#F5F5F0 50%);"></div>
+              <div class="theme-label">System</div>
+            </div>
+          </div>
+          <div class="ob-footer">
+            <div class="ob-dots">${_obDots()}</div>
+            <div style="display:flex;gap:8px">
+              <button class="btn" onclick="_obPrev()">Back</button>
+              <button class="btn btn-green" onclick="_obNext()">Next</button>
+            </div>
+          </div>`;
+        break;
+
+      case 5: // Ready
+        const provLabel = _obProvider
+          ? `<span class="check">✓</span> ${_obProvider.name}${_obProviderTested ? ' (tested)' : ''}`
+          : `<span class="skip">—</span> Skipped (configure later in Settings)`;
+        body = `
+          <div style="text-align:center">
+            <div class="ob-icon">🚀</div>
+            <div class="ob-title">You're Ready</div>
+            <div class="ob-sub">Here's your setup summary.</div>
+          </div>
+          <ul class="ob-summary">
+            <li>${provLabel}</li>
+            <li><span class="check">✓</span> Workspace: ${_obPreset.label}</li>
+            <li><span class="check">✓</span> Theme: ${_obTheme.charAt(0).toUpperCase() + _obTheme.slice(1)}</li>
+          </ul>
+          <button class="ob-launch-btn" onclick="_obFinish()">Launch Hyperion</button>
+          <div class="ob-footer" style="margin-top:16px">
+            <div class="ob-dots">${_obDots()}</div>
+            <button class="btn" onclick="_obPrev()">Back</button>
+          </div>`;
+        break;
+    }
+
+    overlay.innerHTML = `<div class="ob-card">${body}</div>`;
+    document.body.appendChild(overlay);
+
+    // Re-render provider config if on step 1 and a provider is selected
+    if (_obStep === 1 && _obProvider) {
+      _obRenderProviderConfig();
+    }
   }
-  window._obNext = () => { step = Math.min(step + 1, steps.length - 1); render(); };
-  window._obPrev = () => { step = Math.max(step - 1, 0); render(); };
-  window._obSkip = () => _obFinish();
-  window._obSetTheme = (t) => { if (typeof setTheme === 'function') setTheme(t); };
-  window._obFinish = () => {
+
+  function _obRenderProviderConfig() {
+    const el = document.getElementById('obProviderConfig');
+    if (!el) return;
+    const p = _obProvider;
+    if (p.needsKey) {
+      el.innerHTML = `
+        <div class="ob-key-row">
+          <input type="password" id="obApiKey" placeholder="Paste your ${p.name} API key" value="${_obApiKey}" oninput="_obApiKey=this.value">
+          <button onclick="_obTestProvider()">Test</button>
+        </div>
+        <div class="ob-test-status" id="obTestStatus"></div>`;
+    } else {
+      el.innerHTML = `
+        <div style="margin-top:12px">
+          <button class="btn btn-green" onclick="_obTestProvider()" style="width:100%">Test Ollama Connection</button>
+        </div>
+        <div class="ob-test-status" id="obTestStatus"></div>`;
+    }
+  }
+
+  window._obNext = () => { _obStep = Math.min(_obStep + 1, 5); _obRender(); };
+  window._obPrev = () => { _obStep = Math.max(_obStep - 1, 0); _obRender(); };
+  window._obSkip = () => {
     localStorage.setItem('hyperion_onboarded', '1');
+    const overlay = document.querySelector('.ob-overlay');
+    if (overlay) overlay.remove();
     document.querySelector('.sidebar').style.display = '';
     go('dashboard');
     startSystemWs();
     loadUserSettings();
   };
-  render();
+
+  window._obSelectProvider = (id) => {
+    _obProvider = OB_PROVIDERS.find(p => p.id === id);
+    _obApiKey = '';
+    _obProviderTested = false;
+    _obRender();
+  };
+
+  window._obSelectPreset = (id) => {
+    _obPreset = OB_PRESETS.find(p => p.id === id);
+    _obRender();
+  };
+
+  window._obSetTheme = (t) => {
+    _obTheme = t;
+    // Live preview
+    if (t === 'system') {
+      _applySystemTheme();
+    } else if (t === 'light') {
+      document.body.classList.add('theme-light');
+    } else {
+      document.body.classList.remove('theme-light');
+    }
+    _obRender();
+  };
+
+  window._obTestProvider = async () => {
+    const statusEl = document.getElementById('obTestStatus');
+    if (!statusEl) return;
+    statusEl.className = 'ob-test-status';
+    statusEl.style.display = 'block';
+    statusEl.textContent = 'Testing connection…';
+    statusEl.style.color = 'var(--text2)';
+    statusEl.style.background = 'var(--bg3)';
+
+    try {
+      const p = _obProvider;
+      // Save provider settings first
+      const settingsPayload = { llm_provider: p.id };
+      if (p.needsKey) {
+        _obApiKey = document.getElementById('obApiKey')?.value || _obApiKey;
+        settingsPayload.llm_api_key = _obApiKey;
+      }
+      settingsPayload.llm_model = p.defaultModel;
+      await api('/api/settings', 'PUT', settingsPayload);
+
+      // Test connection
+      const start = Date.now();
+      const res = await api('/api/llm/test', 'POST', { provider: p.id });
+      const latency = Date.now() - start;
+
+      if (res.ok || res.success || res.status === 'ok') {
+        statusEl.className = 'ob-test-status ok';
+        statusEl.textContent = `Connected — ${p.defaultModel} (${latency}ms)`;
+        _obProviderTested = true;
+      } else {
+        statusEl.className = 'ob-test-status err';
+        statusEl.textContent = res.error || res.message || 'Connection failed';
+      }
+    } catch (e) {
+      statusEl.className = 'ob-test-status err';
+      statusEl.textContent = e.message || 'Connection failed';
+    }
+  };
+
+  window._obFinish = async () => {
+    try {
+      // 1. Save LLM provider settings
+      if (_obProvider) {
+        const payload = { llm_provider: _obProvider.id, llm_model: _obProvider.defaultModel };
+        if (_obProvider.needsKey && _obApiKey) payload.llm_api_key = _obApiKey;
+        await api('/api/settings', 'PUT', payload);
+      }
+
+      // 2. Set nav favorites from preset
+      _navFavorites = [..._obPreset.favs];
+      localStorage.setItem('hyperion_nav_favs', JSON.stringify(_navFavorites));
+      buildGroupedNav();
+
+      // 3. Save theme
+      await api('/api/settings', 'PUT', { theme: _obTheme });
+
+      // 4. Mark onboarded
+      localStorage.setItem('hyperion_onboarded', '1');
+
+      // 5. Clean up overlay and show app
+      const overlay = document.querySelector('.ob-overlay');
+      if (overlay) overlay.remove();
+      document.querySelector('.sidebar').style.display = '';
+      go(_obPreset.defaultPage);
+      startSystemWs();
+      loadUserSettings();
+
+      // 6. Start guided tour after a brief delay
+      setTimeout(startGuidedTour, 600);
+    } catch (e) {
+      console.error('Onboarding finish error:', e);
+      // Fallback — still let user in
+      localStorage.setItem('hyperion_onboarded', '1');
+      const overlay = document.querySelector('.ob-overlay');
+      if (overlay) overlay.remove();
+      document.querySelector('.sidebar').style.display = '';
+      go('dashboard');
+      startSystemWs();
+      loadUserSettings();
+    }
+  };
+
+  _obRender();
+}
+
+/* ═══ Guided Tour — Spotlight Walkthrough ═══ */
+
+function startGuidedTour() {
+  if (localStorage.getItem('hyperion_toured') === '1') return;
+
+  const TOUR_STEPS = [
+    { target: '#sidebar', title: 'Sidebar Navigation', desc: '55+ tools organized in collapsible groups. Click the star icon on any item to pin it to your Favorites at the top.', position: 'right' },
+    { target: '.nav-btn[data-page="terminal"]', title: 'Terminal', desc: 'Full PTY terminal in your browser. Split panes, multiple tabs, and broadcast mode to type in all panes at once.', position: 'right' },
+    { target: '.nav-btn[data-page="chat"]', title: 'AI Chat', desc: 'Your AI assistant can run commands, manage Docker containers, write code, and automate tasks — all through conversation.', position: 'right' },
+    { target: '.sidebar-bottom', title: 'Quick Actions', desc: 'Access settings, notifications, and system stats. Everything you need is one click away.', position: 'right-above' },
+    { target: 'body', title: 'Command Palette (Cmd+K)', desc: 'Press Cmd+K (or Ctrl+K) anywhere to instantly search and launch any tool, page, or action.', position: 'center' },
+  ];
+
+  let tourStep = 0;
+  let backdrop, spotlight, tooltip;
+
+  function createTourElements() {
+    backdrop = document.createElement('div');
+    backdrop.className = 'tour-backdrop';
+    backdrop.onclick = () => {}; // absorb clicks
+
+    spotlight = document.createElement('div');
+    spotlight.className = 'tour-spotlight';
+
+    tooltip = document.createElement('div');
+    tooltip.className = 'tour-tooltip';
+
+    document.body.appendChild(backdrop);
+    document.body.appendChild(spotlight);
+    document.body.appendChild(tooltip);
+  }
+
+  function positionTour() {
+    const step = TOUR_STEPS[tourStep];
+    const isCenter = step.position === 'center';
+
+    if (isCenter) {
+      // Centered overlay — no spotlight cutout
+      spotlight.style.display = 'none';
+
+      const tw = 320;
+      const th = 200;
+      tooltip.style.left = `${(window.innerWidth - tw) / 2}px`;
+      tooltip.style.top = `${(window.innerHeight - th) / 2}px`;
+    } else {
+      const el = document.querySelector(step.target);
+      if (!el) { tourNext(); return; }
+
+      const rect = el.getBoundingClientRect();
+      const pad = 6;
+
+      // Position spotlight over target
+      spotlight.style.display = '';
+      spotlight.style.left = `${rect.left - pad}px`;
+      spotlight.style.top = `${rect.top - pad}px`;
+      spotlight.style.width = `${rect.width + pad * 2}px`;
+      spotlight.style.height = `${rect.height + pad * 2}px`;
+
+      // Position tooltip
+      const tw = 320;
+      let tooltipLeft = rect.right + 16;
+      let tooltipTop = rect.top;
+
+      if (step.position === 'right-above') {
+        tooltipTop = rect.bottom - 200;
+      }
+
+      // Viewport clamping
+      if (tooltipLeft + tw > window.innerWidth - 16) {
+        tooltipLeft = rect.left - tw - 16;
+      }
+      if (tooltipTop < 16) tooltipTop = 16;
+      if (tooltipTop + 200 > window.innerHeight - 16) {
+        tooltipTop = window.innerHeight - 216;
+      }
+
+      tooltip.style.left = `${tooltipLeft}px`;
+      tooltip.style.top = `${tooltipTop}px`;
+    }
+
+    const isLast = tourStep === TOUR_STEPS.length - 1;
+    tooltip.innerHTML = `
+      <div class="tour-step">Step ${tourStep + 1} of ${TOUR_STEPS.length}</div>
+      <div class="tour-title">${step.title}</div>
+      <div class="tour-desc">${step.desc}</div>
+      <div class="tour-btns">
+        <button class="tour-skip" onclick="_tourDismiss()">Skip tour</button>
+        <button class="tour-next" onclick="_tourNext()">${isLast ? 'Done' : 'Next'}</button>
+      </div>`;
+  }
+
+  function tourNext() {
+    tourStep++;
+    if (tourStep >= TOUR_STEPS.length) {
+      tourDismiss();
+      return;
+    }
+    positionTour();
+  }
+
+  function tourDismiss() {
+    localStorage.setItem('hyperion_toured', '1');
+    if (backdrop) backdrop.remove();
+    if (spotlight) spotlight.remove();
+    if (tooltip) tooltip.remove();
+  }
+
+  window._tourNext = tourNext;
+  window._tourDismiss = tourDismiss;
+
+  createTourElements();
+  positionTour();
 }
 
 function logout() {
@@ -536,7 +948,7 @@ async function go(p) {
   _trackNavRecent(p);
   _highlightActiveNav();
   const main = document.getElementById('main');
-  const loaders = { dashboard: loadDashboard, assistant: loadAssistant, nova: loadNova, terminal: loadTerminal, code: loadCode, files: loadFiles, notebooks: loadNotebooks, agents: loadAgents, workflows: loadWorkflows, system: loadSystem, settings: loadSettings, plugins: loadPluginsPage, skills: loadSkillsPage, canvas: loadCanvasPage, doctor: loadDoctorPage, memory: loadMemoryPage, channels: loadChannelsPage, remote: loadRemote, monitor: loadMonitor, analytics: loadAnalytics, httpclient: loadHttpClient, vault: loadVault, dbexplorer: loadDbExplorer, docker: loadDocker, gitclient: loadGitClient, logs: loadLogViewer, toolkit: loadToolkit, snippets: loadSnippets, envmanager: loadEnvManager, cronmanager: loadCronManager, processes: loadProcessManager, nettools: loadNetTools, wstester: loadWsTester, markdown: loadMarkdown, mockapi: loadMockApi, deps: loadDeps, notes: loadNotes, bookmarks: loadBookmarks, loadtest: loadLoadTest, dataview: loadDataView, texttools: loadTextTools, clipboard: loadClipboard, pomodoro: loadPomodoro, linkcheck: loadLinkCheck, regex: loadRegex, jwt: loadJwt, diff: loadDiff, images: loadImages, cronexpr: loadCronExpr, colors: loadColors, base64: loadBase64, hashgen: loadHashGen, uuidgen: loadUuidGen, jsontools: loadJsonTools, yamltools: loadYamlTools, loremgen: loadLoremGen, backups: loadBackups, shortcuts: loadShortcuts, apidocs: loadApiDocs, tunnels: loadTunnels, filehistory: loadFileHistory, webhooks: loadWebhooks, widgets: loadWidgets, metricshistory: loadMetricsHistory, auditviewer: loadAuditViewer, healthdash: loadHealthDashboard };
+  const loaders = { dashboard: loadDashboard, assistant: loadAssistant, nova: loadNova, terminal: loadTerminal, code: loadCode, files: loadFiles, notebooks: loadNotebooks, agents: loadAgents, workflows: loadWorkflows, system: loadSystem, settings: loadSettings, plugins: loadPluginsPage, skills: loadSkillsPage, canvas: loadCanvasPage, doctor: loadDoctorPage, memory: loadMemoryPage, channels: loadChannelsPage, remote: loadRemote, monitor: loadMonitor, analytics: loadAnalytics, httpclient: loadHttpClient, vault: loadVault, dbexplorer: loadDbExplorer, docker: loadDocker, gitclient: loadGitClient, logs: loadLogViewer, toolkit: loadToolkit, snippets: loadSnippets, envmanager: loadEnvManager, cronmanager: loadCronManager, processes: loadProcessManager, nettools: loadNetTools, wstester: loadWsTester, markdown: loadMarkdown, mockapi: loadMockApi, deps: loadDeps, notes: loadNotes, bookmarks: loadBookmarks, loadtest: loadLoadTest, dataview: loadDataView, texttools: loadTextTools, clipboard: loadClipboard, pomodoro: loadPomodoro, linkcheck: loadLinkCheck, regex: loadRegex, jwt: loadJwt, diff: loadDiff, images: loadImages, cronexpr: loadCronExpr, colors: loadColors, base64: loadBase64, hashgen: loadHashGen, uuidgen: loadUuidGen, jsontools: loadJsonTools, yamltools: loadYamlTools, loremgen: loadLoremGen, backups: loadBackups, shortcuts: loadShortcuts, apidocs: loadApiDocs, tunnels: loadTunnels, filehistory: loadFileHistory, webhooks: loadWebhooks, widgets: loadWidgets, metricshistory: loadMetricsHistory, auditviewer: loadAuditViewer, healthdash: loadHealthDashboard, chat: loadChat };
   // Page exit animation
   if (main.innerHTML && !main.classList.contains('page-enter')) {
     main.classList.add('page-exit');
@@ -3071,22 +3483,27 @@ function renderSettingsTab() {
     case 'llm':
       el.innerHTML = `
         <h3 style="font:600 15px var(--sans);margin-bottom:16px">LLM Configuration</h3>
+        <p style="font:12px var(--sans);color:var(--text3);margin-bottom:16px">Connect any AI provider — enter your API key and select a model. Multiple providers can be configured for automatic failover.</p>
         <div class="form-group"><label>Provider</label>
           <select id="setLlmProvider" onchange="llmProviderChanged()">
             <option value="ollama" ${_userSettings.llm_provider === 'ollama' ? 'selected' : ''}>Ollama (Local)</option>
             <option value="openai" ${_userSettings.llm_provider === 'openai' ? 'selected' : ''}>OpenAI</option>
-            <option value="gemini" ${_userSettings.llm_provider === 'gemini' ? 'selected' : ''}>Gemini</option>
+            <option value="gemini" ${_userSettings.llm_provider === 'gemini' ? 'selected' : ''}>Google Gemini</option>
+            <option value="anthropic" ${_userSettings.llm_provider === 'anthropic' ? 'selected' : ''}>Anthropic (Claude)</option>
+            <option value="xai" ${_userSettings.llm_provider === 'xai' ? 'selected' : ''}>xAI (Grok)</option>
           </select>
         </div>
         <div class="form-group"><label>Model</label><input id="setLlmModel" value="${esc(_userSettings.llm_model || '')}"></div>
         <div class="form-group"><label>API Key</label><input id="setLlmKey" type="password" value="${_userSettings.llm_apikey ? '••••••••' : ''}" placeholder="Enter API key"></div>
-        <div class="form-group"><label>Base URL (Ollama)</label><input id="setLlmUrl" value="${esc(_userSettings.llm_base_url || 'http://localhost:11434')}"></div>
-        <div style="display:flex;gap:8px">
+        <div class="form-group"><label>Base URL <span style="color:var(--text3)">(Ollama / custom endpoint)</span></label><input id="setLlmUrl" value="${esc(_userSettings.llm_base_url || 'http://localhost:11434')}"></div>
+        <div style="display:flex;gap:8px;margin-bottom:16px">
           <button class="btn btn-green" onclick="saveLlmSettings()">Save</button>
           <button class="btn" onclick="testLlmSettings()">Test Connection</button>
         </div>
         <div id="setLlmMsg" style="margin-top:8px;font:12px var(--sans)"></div>
+        <div id="llmProviderStatus" style="margin-top:20px"></div>
       `;
+      _loadLlmProviderStatus();
       break;
 
     case 'theme':
@@ -3287,8 +3704,28 @@ async function testLlmSettings() {
 
 function llmProviderChanged() {
   const provider = document.getElementById('setLlmProvider').value;
-  const models = { ollama: 'llama3', openai: 'gpt-4o-mini', gemini: 'gemini-2.0-flash' };
+  const models = { ollama: 'llama3', openai: 'gpt-4o-mini', gemini: 'gemini-2.0-flash', anthropic: 'claude-sonnet-4-20250514', xai: 'grok-3-mini' };
   document.getElementById('setLlmModel').value = models[provider] || '';
+}
+
+async function _loadLlmProviderStatus() {
+  const el = document.getElementById('llmProviderStatus');
+  if (!el) return;
+  try {
+    const providers = await api('/api/llm/providers');
+    if (!providers?.length) return;
+    el.innerHTML = '<h4 style="font:600 13px var(--sans);margin-bottom:10px;color:var(--text2)">Provider Status</h4>' +
+      providers.map(p => {
+        const dot = p.configured ? (p.health.circuitOpen ? '&#x1F7E1;' : '&#x1F7E2;') : '&#x1F534;';
+        const status = p.configured ? (p.health.circuitOpen ? 'Circuit Open' : (p.health.lastSuccess ? `OK (${p.health.latency}ms)` : 'Ready')) : 'Not Configured';
+        return `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;font:12px var(--sans)">
+          <span>${dot}</span>
+          <span style="color:var(--text);font-weight:600;min-width:80px">${esc(p.name)}</span>
+          <span style="color:var(--text3)">${esc(p.model)}</span>
+          <span style="margin-left:auto;color:var(--text2)">${status}</span>
+        </div>`;
+      }).join('');
+  } catch {}
 }
 
 // ═══ 2FA / TOTP ═══
@@ -12029,3 +12466,377 @@ async function _loadSavedTheme() {
 }
 // Attach to loadUserSettings
 const _origLoadUserSettings = typeof loadUserSettings === 'function' ? loadUserSettings : null;
+
+// ═══ AI CHAT ═══
+let _chatSessions = [];
+let _chatActiveSession = null;
+let _chatStreaming = false;
+let _chatAbortController = null;
+
+async function loadChat() {
+  const main = document.getElementById('main');
+  main.innerHTML = `
+    <div class="page" style="padding:0;height:100%">
+      <div class="chat-layout">
+        <div class="chat-sidebar">
+          <div class="chat-sidebar-header">
+            <h3>Chats</h3>
+            <button class="chat-new-btn" onclick="_chatNewSession()">+ New</button>
+          </div>
+          <div class="chat-session-list" id="chatSessionList"></div>
+        </div>
+        <div class="chat-main">
+          <div class="chat-messages" id="chatMessages"></div>
+          <div class="chat-input-area">
+            <div class="chat-input-wrap">
+              <textarea class="chat-input" id="chatInput" placeholder="Ask Hyperion anything..." rows="1"
+                onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();_chatSend()}"></textarea>
+              <button class="chat-send-btn" id="chatSendBtn" onclick="_chatSend()">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22,2 15,22 11,13 2,9"/>
+                </svg>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+
+  // Auto-resize textarea
+  const input = document.getElementById('chatInput');
+  input.addEventListener('input', () => {
+    input.style.height = 'auto';
+    input.style.height = Math.min(input.scrollHeight, 150) + 'px';
+  });
+
+  await _chatLoadSessions();
+  if (_chatSessions.length > 0) {
+    await _chatSelectSession(_chatSessions[0].id);
+  } else {
+    _chatShowEmpty();
+  }
+}
+
+async function _chatLoadSessions() {
+  try {
+    _chatSessions = await api('/api/chat/sessions');
+  } catch { _chatSessions = []; }
+  _chatRenderSessions();
+}
+
+function _chatRenderSessions() {
+  const list = document.getElementById('chatSessionList');
+  if (!list) return;
+  list.innerHTML = _chatSessions.map(s => `
+    <div class="chat-session-item${_chatActiveSession === s.id ? ' active' : ''}" onclick="_chatSelectSession('${s.id}')">
+      <span class="chat-session-title">${esc(s.title)}</span>
+      <button class="chat-session-delete" onclick="event.stopPropagation();_chatDeleteSession('${s.id}')" title="Delete">&times;</button>
+    </div>
+  `).join('') || '<div style="padding:20px;text-align:center;color:var(--text3);font-size:12px">No conversations yet</div>';
+}
+
+async function _chatSelectSession(id) {
+  _chatActiveSession = id;
+  _chatRenderSessions();
+  try {
+    const messages = await api(`/api/chat/sessions/${id}/messages`);
+    _chatRenderMessages(messages);
+  } catch {
+    _chatRenderMessages([]);
+  }
+}
+
+async function _chatNewSession() {
+  try {
+    const session = await api('/api/chat/sessions', 'POST', { title: 'New Chat' });
+    _chatSessions.unshift(session);
+    await _chatSelectSession(session.id);
+  } catch (err) {
+    console.error('Failed to create session:', err);
+  }
+}
+
+async function _chatDeleteSession(id) {
+  try {
+    await api(`/api/chat/sessions/${id}`, 'DELETE');
+    _chatSessions = _chatSessions.filter(s => s.id !== id);
+    if (_chatActiveSession === id) {
+      _chatActiveSession = _chatSessions[0]?.id || null;
+      if (_chatActiveSession) await _chatSelectSession(_chatActiveSession);
+      else _chatShowEmpty();
+    }
+    _chatRenderSessions();
+  } catch {}
+}
+
+function _chatShowEmpty() {
+  const container = document.getElementById('chatMessages');
+  if (!container) return;
+  container.innerHTML = `
+    <div class="chat-empty">
+      <div class="chat-empty-icon">&#x1F916;</div>
+      <div class="chat-empty-title">Hyperion AI Agent</div>
+      <div class="chat-empty-sub">Ask me to manage your system, run commands, work with Docker, Git, files, and more. I can execute tools autonomously.</div>
+      <div class="chat-example-prompts">
+        <button class="chat-example-btn" onclick="_chatExampleClick(this)">Show Docker containers</button>
+        <button class="chat-example-btn" onclick="_chatExampleClick(this)">Check disk usage</button>
+        <button class="chat-example-btn" onclick="_chatExampleClick(this)">List files in ~/Desktop</button>
+        <button class="chat-example-btn" onclick="_chatExampleClick(this)">System CPU and memory info</button>
+      </div>
+    </div>
+  `;
+}
+
+function _chatExampleClick(btn) {
+  const input = document.getElementById('chatInput');
+  if (input) { input.value = btn.textContent; _chatSend(); }
+}
+
+function _chatRenderMessages(messages) {
+  const container = document.getElementById('chatMessages');
+  if (!container) return;
+  if (!messages.length) { _chatShowEmpty(); return; }
+
+  container.innerHTML = messages.map(m => {
+    if (m.role === 'user') {
+      return `<div class="chat-msg user"><div class="chat-msg-bubble">${esc(m.content)}</div></div>`;
+    }
+    let html = '<div class="chat-msg assistant">';
+    if (m.tools?.length) {
+      html += m.tools.map(t => _chatRenderToolCard(t)).join('');
+    }
+    if (m.content) {
+      html += `<div class="chat-msg-bubble">${_chatFormatText(m.content)}</div>`;
+    }
+    html += '</div>';
+    return html;
+  }).join('');
+  container.scrollTop = container.scrollHeight;
+}
+
+function _chatRenderToolCard(tool) {
+  if (tool.type === 'start') return ''; // skip starts, show results
+  const status = tool.denied ? 'denied' : (tool.result?.error ? 'error' : 'success');
+  const statusLabel = tool.denied ? 'Denied' : (tool.result?.error ? 'Error' : 'Done');
+  const body = tool.result ? JSON.stringify(tool.result, null, 2) : '';
+  const argsStr = tool.arguments ? JSON.stringify(tool.arguments) : '';
+  return `
+    <div class="chat-tool-card">
+      <div class="chat-tool-header" onclick="this.parentElement.querySelector('.chat-tool-body').classList.toggle('hidden')">
+        <span class="chat-tool-name">${esc(tool.name)}</span>
+        ${argsStr ? `<span class="chat-tool-args" style="font-size:11px;color:var(--text3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:300px">${esc(argsStr)}</span>` : ''}
+        <span class="chat-tool-status ${status}">${statusLabel}</span>
+      </div>
+      <div class="chat-tool-body${body.length > 500 ? ' hidden' : ''}">${esc(body).slice(0, 3000)}</div>
+    </div>
+  `;
+}
+
+async function _chatSend() {
+  const input = document.getElementById('chatInput');
+  const message = input?.value?.trim();
+  if (!message || _chatStreaming) return;
+
+  // Create session if needed
+  if (!_chatActiveSession) {
+    try {
+      const session = await api('/api/chat/sessions', 'POST', { title: message.slice(0, 60) });
+      _chatSessions.unshift(session);
+      _chatActiveSession = session.id;
+      _chatRenderSessions();
+    } catch { return; }
+  }
+
+  input.value = '';
+  input.style.height = 'auto';
+  _chatStreaming = true;
+  document.getElementById('chatSendBtn').disabled = true;
+
+  const container = document.getElementById('chatMessages');
+  // Clear empty state
+  const emptyEl = container.querySelector('.chat-empty');
+  if (emptyEl) emptyEl.remove();
+
+  // Add user message
+  container.insertAdjacentHTML('beforeend', `<div class="chat-msg user"><div class="chat-msg-bubble">${esc(message)}</div></div>`);
+
+  // Add assistant placeholder
+  const assistantDiv = document.createElement('div');
+  assistantDiv.className = 'chat-msg assistant';
+  container.appendChild(assistantDiv);
+  container.scrollTop = container.scrollHeight;
+
+  let currentBubble = null;
+  let fullText = '';
+
+  try {
+    _chatAbortController = new AbortController();
+    const res = await fetch('/api/chat/stream', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Session-Id': _sessionId },
+      body: JSON.stringify({ message, sessionId: _chatActiveSession }),
+      signal: _chatAbortController.signal,
+    });
+
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+
+      const lines = buffer.split('\n');
+      buffer = lines.pop() || '';
+
+      let eventType = '';
+      for (const line of lines) {
+        if (line.startsWith('event: ')) {
+          eventType = line.slice(7).trim();
+        } else if (line.startsWith('data: ') && eventType) {
+          let data;
+          try { data = JSON.parse(line.slice(6)); } catch { continue; }
+          _handleChatSSE(eventType, data, assistantDiv, container);
+          if (eventType === 'text') {
+            fullText += data.text || '';
+            if (!currentBubble) {
+              currentBubble = document.createElement('div');
+              currentBubble.className = 'chat-msg-bubble chat-streaming';
+              assistantDiv.appendChild(currentBubble);
+            }
+            currentBubble.innerHTML = _chatFormatText(fullText);
+            container.scrollTop = container.scrollHeight;
+          }
+          if (eventType === 'done' || eventType === 'close') {
+            if (currentBubble) currentBubble.classList.remove('chat-streaming');
+          }
+          eventType = '';
+        }
+      }
+    }
+  } catch (err) {
+    if (err.name !== 'AbortError') {
+      assistantDiv.insertAdjacentHTML('beforeend',
+        `<div class="chat-msg-bubble" style="color:var(--red)">Error: ${esc(err.message)}</div>`);
+    }
+  }
+
+  if (currentBubble) currentBubble.classList.remove('chat-streaming');
+  _chatStreaming = false;
+  _chatAbortController = null;
+  document.getElementById('chatSendBtn').disabled = false;
+  container.scrollTop = container.scrollHeight;
+
+  // Update session title if it was the first message
+  const sess = _chatSessions.find(s => s.id === _chatActiveSession);
+  if (sess && sess.title === 'New Chat') {
+    sess.title = message.slice(0, 60);
+    api(`/api/chat/sessions/${_chatActiveSession}`, 'PATCH', { title: sess.title }).catch(() => {});
+    _chatRenderSessions();
+  }
+}
+
+function _handleChatSSE(type, data, assistantDiv, container) {
+  switch (type) {
+    case 'provider':
+      assistantDiv.insertAdjacentHTML('afterbegin',
+        `<span class="chat-provider">${esc(data.provider)} / ${esc(data.model)}</span>`);
+      break;
+    case 'session':
+      if (data.sessionId && data.sessionId !== _chatActiveSession) {
+        _chatActiveSession = data.sessionId;
+      }
+      break;
+    case 'tool_start': {
+      const card = document.createElement('div');
+      card.className = 'chat-tool-card';
+      card.id = `tool-${data.id}`;
+      const argsStr = data.arguments ? JSON.stringify(data.arguments) : '';
+      card.innerHTML = `
+        <div class="chat-tool-header">
+          <span class="chat-tool-name">${esc(data.name)}</span>
+          <span style="font-size:11px;color:var(--text3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:300px">${esc(argsStr)}</span>
+          <span class="chat-tool-status running">Running</span>
+        </div>
+        <div class="chat-tool-body" style="color:var(--amber)">Executing...</div>
+      `;
+      assistantDiv.appendChild(card);
+      container.scrollTop = container.scrollHeight;
+      break;
+    }
+    case 'tool_result': {
+      const card = document.getElementById(`tool-${data.id}`);
+      if (card) {
+        const status = data.denied ? 'denied' : (data.result?.error ? 'error' : 'success');
+        const label = data.denied ? 'Denied' : (data.result?.error ? 'Error' : 'Done');
+        const statusEl = card.querySelector('.chat-tool-status');
+        if (statusEl) { statusEl.className = `chat-tool-status ${status}`; statusEl.textContent = label; }
+        const body = card.querySelector('.chat-tool-body');
+        if (body) {
+          const text = JSON.stringify(data.result, null, 2);
+          body.style.color = '';
+          body.textContent = text.slice(0, 3000);
+          body.onclick = () => body.classList.toggle('hidden');
+        }
+      }
+      container.scrollTop = container.scrollHeight;
+      break;
+    }
+    case 'approval_needed': {
+      const banner = document.createElement('div');
+      banner.className = 'chat-approval';
+      banner.id = `approval-${data.id}`;
+      const argsStr = data.arguments ? JSON.stringify(data.arguments, null, 2) : '';
+      banner.innerHTML = `
+        <span class="chat-approval-icon">&#x26A0;</span>
+        <div class="chat-approval-text">
+          <div><strong>Approval Required</strong></div>
+          <div class="chat-approval-tool">${esc(data.name)}</div>
+          <pre style="font-size:11px;margin-top:4px;color:var(--text3)">${esc(argsStr)}</pre>
+        </div>
+        <div class="chat-approval-btns">
+          <button class="chat-approve-btn" onclick="_chatApprove('${_chatActiveSession}',true)">Approve</button>
+          <button class="chat-deny-btn" onclick="_chatApprove('${_chatActiveSession}',false)">Deny</button>
+        </div>
+      `;
+      assistantDiv.appendChild(banner);
+      container.scrollTop = container.scrollHeight;
+      break;
+    }
+    case 'error':
+      assistantDiv.insertAdjacentHTML('beforeend',
+        `<div style="color:var(--red);font-size:12px;padding:4px 0">${esc(data.error || 'Unknown error')}</div>`);
+      break;
+  }
+}
+
+async function _chatApprove(sessionId, approved) {
+  try {
+    await api('/api/chat/approve', 'POST', { sessionId, approved });
+    // Remove approval banner
+    const banners = document.querySelectorAll('.chat-approval');
+    banners.forEach(b => {
+      b.innerHTML = `<span style="color:${approved ? 'var(--cyan)' : 'var(--red)};font-size:12px">${approved ? '&#10003; Approved' : '&#10007; Denied'}</span>`;
+      setTimeout(() => b.remove(), 2000);
+    });
+  } catch {}
+}
+
+function _chatFormatText(text) {
+  if (!text) return '';
+  let html = esc(text);
+  // Code blocks
+  html = html.replace(/```(\w*)\n([\s\S]*?)```/g, (_, lang, code) =>
+    `<pre><code>${code}</code></pre>`);
+  // Inline code
+  html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
+  // Bold
+  html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+  // Italic
+  html = html.replace(/\*(.+?)\*/g, '<em>$1</em>');
+  // Line breaks
+  html = html.replace(/\n/g, '<br>');
+  return html;
+}
