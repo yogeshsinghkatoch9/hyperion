@@ -1,4 +1,4 @@
-const CACHE_NAME = 'hyperion-v2';
+const CACHE_NAME = 'hyperion-v11';
 const STATIC_ASSETS = [
   '/',
   '/css/hyperion.css',

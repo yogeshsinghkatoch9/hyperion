@@ -121,7 +121,15 @@ NAV_GROUPS.forEach(g => g.items.forEach(item => { if (!item.hidden) _navItemMap[
 
 let _navFavorites = JSON.parse(localStorage.getItem('hyperion_nav_favs') || '[]');
 let _navRecents = JSON.parse(localStorage.getItem('hyperion_nav_recents') || '[]');
-let _navCollapsed = JSON.parse(localStorage.getItem('hyperion_nav_collapsed') || '{}');
+let _navCollapsed = {};
+
+// ── Mega-menu: combine 10 groups into 4 categories ──
+const NAV_MEGA = [
+  { id: 'dev', label: 'Dev', groups: ['core', 'workspace'] },
+  { id: 'ai', label: 'AI', groups: ['ai'] },
+  { id: 'infra', label: 'Infra', groups: ['devops', 'network', 'monitoring'] },
+  { id: 'toolkit', label: 'Toolkit', groups: ['tools', 'security', 'admin'] },
+];
 
 function _navSvg(iconPath) {
   return `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">${iconPath}</svg>`;
@@ -131,32 +139,122 @@ function _navBtn(item, showPin) {
   const isPinned = _navFavorites.includes(item.page);
   const pinCls = isPinned ? ' pinned' : '';
   const pinHtml = showPin ? `<button class="nav-pin${pinCls}" onclick="event.stopPropagation();_toggleNavPin('${item.page}')" title="${isPinned ? 'Unpin' : 'Pin to favorites'}">${isPinned ? '&#9733;' : '&#9734;'}</button>` : '';
-  return `<button class="nav-btn" data-page="${item.page}" onclick="go('${item.page}')" aria-label="${item.label}">${_navSvg(item.icon)}<span>${item.label}</span>${pinHtml}</button>`;
+  return `<button class="dd-item" data-page="${item.page}" onclick="go('${item.page}');_closeAllDropdowns()" aria-label="${item.label}">${_navSvg(item.icon)}<span>${item.label}</span>${pinHtml}</button>`;
+}
+
+function _favBtn(item) {
+  return `<button class="fav-btn" data-page="${item.page}" onclick="go('${item.page}')" aria-label="${item.label}">${_navSvg(item.icon)}<span>${item.label}</span></button>`;
 }
 
 function buildGroupedNav() {
-  const container = document.getElementById('navItems');
-  if (!container) return;
-  let html = '';
-  for (const group of NAV_GROUPS) {
-    const collapsed = _navCollapsed[group.id] ? ' collapsed' : '';
-    const visibleItems = group.items.filter(i => !i.hidden);
-    html += `<div class="nav-section${collapsed}" data-group="${group.id}">`;
-    html += `<div class="nav-section-header" onclick="_toggleNavGroup('${group.id}')"><span class="nav-section-icon">${group.icon}</span><span>${group.label}</span><span class="nav-section-chevron">&#9660;</span></div>`;
-    html += `<div class="nav-section-items">${visibleItems.map(i => _navBtn(i, true)).join('')}</div>`;
-    html += `</div>`;
-  }
-  container.innerHTML = html;
-  _renderNavFavorites();
-  _renderNavRecents();
-  _highlightActiveNav();
+  // All navigation lives in the hamburger sidebar — no dropdown rendering
+  var container = document.getElementById('navItems');
+  if (container) container.innerHTML = '';
 }
 
+function _toggleDropdown(groupId) {
+  var allDropdowns = document.querySelectorAll('.topnav-dropdown');
+  var allBtns = document.querySelectorAll('.topnav-group-btn');
+  var dd = document.getElementById('dd-' + groupId);
+  var btn = dd ? dd.previousElementSibling : null;
+  var overlay = document.getElementById('dropdownOverlay');
+  var isOpen = dd ? dd.classList.contains('open') : false;
+
+  // Close all
+  allDropdowns.forEach(function(d) { d.classList.remove('open'); });
+  allBtns.forEach(function(b) { b.classList.remove('open'); });
+
+  if (!isOpen && dd) {
+    dd.classList.add('open');
+    if (btn) btn.classList.add('open');
+    var btnRect = btn.getBoundingClientRect();
+    var navRect = document.querySelector('.topnav').getBoundingClientRect();
+    dd.style.top = navRect.bottom + 'px';
+
+    if (dd.classList.contains('mega')) {
+      // Mega-menu: center under button, clamped to viewport
+      dd.style.left = '0';
+      requestAnimationFrame(function() {
+        var ddW = dd.offsetWidth;
+        var left = btnRect.left + btnRect.width / 2 - ddW / 2;
+        left = Math.max(8, Math.min(left, window.innerWidth - ddW - 8));
+        dd.style.left = left + 'px';
+      });
+    } else {
+      dd.style.left = Math.max(4, btnRect.left) + 'px';
+      requestAnimationFrame(function() {
+        var ddRect = dd.getBoundingClientRect();
+        if (ddRect.right > window.innerWidth - 8) {
+          dd.style.left = (window.innerWidth - ddRect.width - 8) + 'px';
+        }
+      });
+    }
+    if (overlay) overlay.classList.add('open');
+  } else {
+    if (overlay) overlay.classList.remove('open');
+  }
+}
+
+window._closeAllDropdowns = function() {
+  document.querySelectorAll('.topnav-dropdown').forEach(d => d.classList.remove('open'));
+  document.querySelectorAll('.topnav-group-btn').forEach(b => b.classList.remove('open'));
+  document.getElementById('dropdownOverlay')?.classList.remove('open');
+  const sr = document.getElementById('navSearchResults');
+  if (sr) sr.classList.remove('open');
+};
+
+// ── Hamburger sidebar nav ──
+window._toggleMobileNav = function() {
+  var nav = document.getElementById('mobileNav');
+  var btn = document.getElementById('hamburgerBtn');
+  var overlay = document.getElementById('navSidebarOverlay');
+  if (!nav) return;
+  if (nav.classList.contains('open')) {
+    nav.classList.remove('open');
+    if (btn) btn.classList.remove('open');
+    if (overlay) overlay.classList.remove('open');
+    return;
+  }
+  // Build sidebar content
+  var groupMap = {};
+  NAV_GROUPS.forEach(function(g) { groupMap[g.id] = g; });
+  var html = '';
+  // Dashboard first
+  html += '<button class="ns-item' + (page === 'dashboard' ? ' active' : '') + '" onclick="go(\'dashboard\');_toggleMobileNav()">' + _navSvg('<rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>') + '<span>Dashboard</span></button>';
+  for (var m = 0; m < NAV_MEGA.length; m++) {
+    var mega = NAV_MEGA[m];
+    var subGroups = mega.groups.map(function(gid) { return groupMap[gid]; }).filter(Boolean);
+    for (var s = 0; s < subGroups.length; s++) {
+      var sg = subGroups[s];
+      var vis = sg.items.filter(function(i) { return !i.hidden && i.page !== 'dashboard'; });
+      if (!vis.length) continue;
+      html += '<div class="ns-section"><div class="ns-section-title">' + sg.label + '</div>';
+      for (var v = 0; v < vis.length; v++) {
+        var item = vis[v];
+        var isPinned = _navFavorites.indexOf(item.page) >= 0;
+        html += '<button class="ns-item' + (item.page === page ? ' active' : '') + '" onclick="go(\'' + item.page + '\');_toggleMobileNav()">' + _navSvg(item.icon) + '<span>' + item.label + '</span>';
+        html += '<span class="ns-pin' + (isPinned ? ' pinned' : '') + '" onclick="event.stopPropagation();_toggleNavPin(\'' + item.page + '\');_rebuildSidebar()">' + (isPinned ? '&#9733;' : '&#9734;') + '</span>';
+        html += '</button>';
+      }
+      html += '</div>';
+    }
+  }
+  nav.innerHTML = html;
+  nav.classList.add('open');
+  if (btn) btn.classList.add('open');
+  if (overlay) overlay.classList.add('open');
+};
+
+window._rebuildSidebar = function() {
+  var nav = document.getElementById('mobileNav');
+  if (nav && nav.classList.contains('open')) {
+    nav.classList.remove('open');
+    _toggleMobileNav();
+  }
+};
+
 function _toggleNavGroup(groupId) {
-  _navCollapsed[groupId] = !_navCollapsed[groupId];
-  localStorage.setItem('hyperion_nav_collapsed', JSON.stringify(_navCollapsed));
-  const el = document.querySelector(`.nav-section[data-group="${groupId}"]`);
-  if (el) el.classList.toggle('collapsed');
+  _toggleDropdown(groupId);
 }
 
 function _toggleNavPin(pageName) {
@@ -176,58 +274,51 @@ function _trackNavRecent(pageName) {
 }
 
 function _renderNavFavorites() {
-  const wrap = document.getElementById('navFavorites');
-  const items = document.getElementById('navFavItems');
-  if (!wrap || !items) return;
-  if (_navFavorites.length === 0) { wrap.style.display = 'none'; return; }
-  wrap.style.display = '';
-  items.innerHTML = _navFavorites.map(p => _navItemMap[p] ? _navBtn(_navItemMap[p], false) : '').join('');
+  // Favorites shown in hamburger sidebar only
 }
 
 function _renderNavRecents() {
-  const wrap = document.getElementById('navRecents');
-  const items = document.getElementById('navRecentItems');
-  if (!wrap || !items) return;
-  const recents = _navRecents.filter(p => !_navFavorites.includes(p) && _navItemMap[p]);
-  if (recents.length === 0) { wrap.style.display = 'none'; return; }
-  wrap.style.display = '';
-  items.innerHTML = recents.slice(0, 3).map(p => _navBtn(_navItemMap[p], false)).join('');
+  // Recents shown in hamburger sidebar only
 }
 
 function _highlightActiveNav() {
-  document.querySelectorAll('.nav-btn').forEach(b => b.classList.toggle('active', b.dataset.page === page));
+  document.querySelectorAll('.dd-item, .fav-btn, .topnav-dash-btn').forEach(b => b.classList.toggle('active', b.dataset.page === page));
 }
 
 function _filterNav(query) {
   const q = query.toLowerCase().trim();
-  const sections = document.querySelectorAll('.nav-section[data-group]');
-  const favWrap = document.getElementById('navFavorites');
-  const recWrap = document.getElementById('navRecents');
+  _closeAllDropdowns();
+
+  // Get or create search results dropdown
+  let sr = document.getElementById('navSearchResults');
+  if (!sr) {
+    sr = document.createElement('div');
+    sr.id = 'navSearchResults';
+    sr.className = 'topnav-search-results';
+    document.querySelector('.topnav-right .nav-search-wrap').appendChild(sr);
+  }
+
   if (!q) {
-    // Show all, respect collapsed state
-    sections.forEach(s => {
-      s.style.display = '';
-      if (_navCollapsed[s.dataset.group]) s.classList.add('collapsed'); else s.classList.remove('collapsed');
-      s.querySelectorAll('.nav-btn').forEach(b => b.style.display = '');
-    });
-    if (favWrap && _navFavorites.length) favWrap.style.display = '';
-    if (recWrap && _navRecents.filter(p => !_navFavorites.includes(p) && _navItemMap[p]).length) recWrap.style.display = '';
+    sr.classList.remove('open');
     return;
   }
-  // Hide favorites/recents during search
-  if (favWrap) favWrap.style.display = 'none';
-  if (recWrap) recWrap.style.display = 'none';
-  sections.forEach(s => {
-    s.classList.remove('collapsed');
-    let anyVisible = false;
-    s.querySelectorAll('.nav-btn').forEach(b => {
-      const label = (b.querySelector('span')?.textContent || '').toLowerCase();
-      const match = label.includes(q) || (b.dataset.page || '').includes(q);
-      b.style.display = match ? '' : 'none';
-      if (match) anyVisible = true;
-    });
-    s.style.display = anyVisible ? '' : 'none';
-  });
+
+  // Search all nav items
+  let results = '';
+  for (const group of NAV_GROUPS) {
+    for (const item of group.items) {
+      if (item.hidden) continue;
+      const match = item.label.toLowerCase().includes(q) || item.page.includes(q);
+      if (match) {
+        results += `<button class="dd-item${item.page === page ? ' active' : ''}" data-page="${item.page}" onclick="go('${item.page}');_closeAllDropdowns();document.getElementById('navSearch').value=''" aria-label="${item.label}">${_navSvg(item.icon)}<span>${item.label}</span><span style="margin-left:auto;font:10px var(--mono);color:var(--text3)">${group.label}</span></button>`;
+      }
+    }
+  }
+
+  sr.innerHTML = results || '<div style="padding:12px;color:var(--text3);font:12px var(--sans);text-align:center">No results</div>';
+  const navRect = document.querySelector('.topnav').getBoundingClientRect();
+  sr.style.top = navRect.bottom + 'px';
+  sr.classList.add('open');
 }
 
 // ── Default Keybindings ──
@@ -325,21 +416,30 @@ async function checkAuth() {
   }
 }
 
-function showLogin() {
+function showLogin(isRegister) {
   const main = document.getElementById('main');
-  document.querySelector('.sidebar').style.display = 'none';
+  document.querySelector('.topnav').style.display = 'none';
+  const reg = !!isRegister;
   main.innerHTML = `
     <div style="display:flex;align-items:center;justify-content:center;height:100vh;background:var(--bg)">
       <div style="width:340px;padding:32px;background:var(--bg2);border:1px solid var(--border);border-radius:12px">
         <div style="text-align:center;margin-bottom:24px">
           <div class="assistant-logo" style="margin:0 auto 12px">H</div>
           <h2 style="font:700 20px var(--sans)">HYPERION</h2>
-          <p style="color:var(--text3);font:13px var(--sans);margin-top:4px">Sign in to continue</p>
+          <p style="color:var(--text3);font:13px var(--sans);margin-top:4px">${reg ? 'Create your account' : 'Sign in to continue'}</p>
         </div>
         <div id="loginError" style="display:none;color:var(--red);font:12px var(--sans);margin-bottom:10px;padding:8px;background:rgba(239,83,80,0.1);border-radius:4px"></div>
         <div class="form-group"><label>Username</label><input id="loginUser" autofocus></div>
-        <div class="form-group"><label>Password</label><input id="loginPass" type="password" onkeydown="if(event.key==='Enter')doLogin()"></div>
-        <button class="btn btn-green" style="width:100%;justify-content:center;margin-top:8px" onclick="doLogin()">Sign In</button>
+        <div class="form-group"><label>Password${reg ? ' (min 6 chars)' : ''}</label><input id="loginPass" type="password" ${reg ? '' : 'onkeydown="if(event.key===\'Enter\')doLogin()"'}></div>
+        ${reg ? '<div class="form-group"><label>Confirm Password</label><input id="loginPass2" type="password" onkeydown="if(event.key===\'Enter\')doRegister()"></div>' : ''}
+        <button class="btn btn-green" style="width:100%;justify-content:center;margin-top:8px" onclick="${reg ? 'doRegister()' : 'doLogin()'}">
+          ${reg ? 'Create Account' : 'Sign In'}
+        </button>
+        <p style="text-align:center;margin-top:14px;font:13px var(--sans);color:var(--text3)">
+          ${reg
+            ? 'Already have an account? <a href="#" onclick="showLogin();return false" style="color:var(--green);text-decoration:none">Sign in</a>'
+            : 'Don\'t have an account? <a href="#" onclick="showLogin(true);return false" style="color:var(--green);text-decoration:none">Create one</a>'}
+        </p>
       </div>
     </div>
   `;
@@ -372,10 +472,45 @@ async function doLogin() {
 
     _sessionId = res.sessionId;
     localStorage.setItem('hyperion_sid', _sessionId);
-    document.querySelector('.sidebar').style.display = '';
+    document.querySelector('.topnav').style.display = '';
     go('dashboard');
     startSystemWs();
     loadUserSettings();
+  } catch {
+    errEl.textContent = 'Connection failed';
+    errEl.style.display = 'block';
+  }
+}
+
+async function doRegister() {
+  const username = document.getElementById('loginUser').value;
+  const password = document.getElementById('loginPass').value;
+  const password2 = document.getElementById('loginPass2').value;
+  const errEl = document.getElementById('loginError');
+  errEl.style.display = 'none';
+
+  if (password !== password2) {
+    errEl.textContent = 'Passwords do not match';
+    errEl.style.display = 'block';
+    return;
+  }
+
+  try {
+    const res = await fetch('/api/auth/register', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, password }),
+    }).then(r => r.json());
+
+    if (res.error) {
+      errEl.textContent = res.error;
+      errEl.style.display = 'block';
+      return;
+    }
+
+    _sessionId = res.sessionId;
+    localStorage.setItem('hyperion_sid', _sessionId);
+    showOnboarding();
   } catch {
     errEl.textContent = 'Connection failed';
     errEl.style.display = 'block';
@@ -414,7 +549,7 @@ async function _validate2FA(tempToken) {
     if (res.error) { errEl.textContent = res.error; errEl.style.display = 'block'; return; }
     _sessionId = res.sessionId;
     localStorage.setItem('hyperion_sid', _sessionId);
-    document.querySelector('.sidebar').style.display = '';
+    document.querySelector('.topnav').style.display = '';
     go('dashboard');
     startSystemWs();
     loadUserSettings();
@@ -423,7 +558,7 @@ async function _validate2FA(tempToken) {
 
 function showSetup() {
   const main = document.getElementById('main');
-  document.querySelector('.sidebar').style.display = 'none';
+  document.querySelector('.topnav').style.display = 'none';
   main.innerHTML = `
     <div style="display:flex;align-items:center;justify-content:center;height:100vh;background:var(--bg)">
       <div style="width:340px;padding:32px;background:var(--bg2);border:1px solid var(--border);border-radius:12px">
@@ -704,7 +839,7 @@ function showOnboarding() {
     localStorage.setItem('hyperion_onboarded', '1');
     const overlay = document.querySelector('.ob-overlay');
     if (overlay) overlay.remove();
-    document.querySelector('.sidebar').style.display = '';
+    document.querySelector('.topnav').style.display = '';
     go('dashboard');
     startSystemWs();
     loadUserSettings();
@@ -797,7 +932,7 @@ function showOnboarding() {
       // 5. Clean up overlay and show app
       const overlay = document.querySelector('.ob-overlay');
       if (overlay) overlay.remove();
-      document.querySelector('.sidebar').style.display = '';
+      document.querySelector('.topnav').style.display = '';
       go(_obPreset.defaultPage);
       startSystemWs();
       loadUserSettings();
@@ -810,7 +945,7 @@ function showOnboarding() {
       localStorage.setItem('hyperion_onboarded', '1');
       const overlay = document.querySelector('.ob-overlay');
       if (overlay) overlay.remove();
-      document.querySelector('.sidebar').style.display = '';
+      document.querySelector('.topnav').style.display = '';
       go('dashboard');
       startSystemWs();
       loadUserSettings();
@@ -826,10 +961,9 @@ function startGuidedTour() {
   if (localStorage.getItem('hyperion_toured') === '1') return;
 
   const TOUR_STEPS = [
-    { target: '#sidebar', title: 'Sidebar Navigation', desc: '55+ tools organized in collapsible groups. Click the star icon on any item to pin it to your Favorites at the top.', position: 'right' },
-    { target: '.nav-btn[data-page="terminal"]', title: 'Terminal', desc: 'Full PTY terminal in your browser. Split panes, multiple tabs, and broadcast mode to type in all panes at once.', position: 'right' },
-    { target: '.nav-btn[data-page="chat"]', title: 'AI Chat', desc: 'Your AI assistant can run commands, manage Docker containers, write code, and automate tasks — all through conversation.', position: 'right' },
-    { target: '.sidebar-bottom', title: 'Quick Actions', desc: 'Access settings, notifications, and system stats. Everything you need is one click away.', position: 'right-above' },
+    { target: '.topnav-groups', title: 'Navigation', desc: '55+ tools organized in dropdown menus. Click any category to see its tools. Star items to pin them to the top bar.', position: 'below' },
+    { target: '.nav-search-wrap', title: 'Quick Search', desc: 'Search for any tool instantly. Press / from anywhere to focus the search bar.', position: 'below' },
+    { target: '.topnav-right', title: 'Quick Actions', desc: 'Access settings, notifications, and system stats. Everything you need is one click away.', position: 'below' },
     { target: 'body', title: 'Command Palette (Cmd+K)', desc: 'Press Cmd+K (or Ctrl+K) anywhere to instantly search and launch any tool, page, or action.', position: 'center' },
   ];
 
@@ -880,21 +1014,25 @@ function startGuidedTour() {
 
       // Position tooltip
       const tw = 320;
-      let tooltipLeft = rect.right + 16;
-      let tooltipTop = rect.top;
+      let tooltipLeft, tooltipTop;
 
-      if (step.position === 'right-above') {
+      if (step.position === 'below') {
+        tooltipLeft = rect.left;
+        tooltipTop = rect.bottom + 12;
+        if (tooltipLeft + tw > window.innerWidth - 16) tooltipLeft = window.innerWidth - tw - 16;
+      } else if (step.position === 'right-above') {
+        tooltipLeft = rect.right + 16;
         tooltipTop = rect.bottom - 200;
+      } else {
+        tooltipLeft = rect.right + 16;
+        tooltipTop = rect.top;
       }
 
       // Viewport clamping
-      if (tooltipLeft + tw > window.innerWidth - 16) {
-        tooltipLeft = rect.left - tw - 16;
-      }
+      if (tooltipLeft + tw > window.innerWidth - 16) tooltipLeft = rect.left - tw - 16;
+      if (tooltipLeft < 16) tooltipLeft = 16;
       if (tooltipTop < 16) tooltipTop = 16;
-      if (tooltipTop + 200 > window.innerHeight - 16) {
-        tooltipTop = window.innerHeight - 216;
-      }
+      if (tooltipTop + 200 > window.innerHeight - 16) tooltipTop = window.innerHeight - 216;
 
       tooltip.style.left = `${tooltipLeft}px`;
       tooltip.style.top = `${tooltipTop}px`;
@@ -935,10 +1073,13 @@ function startGuidedTour() {
 }
 
 function logout() {
-  api('/api/auth/logout', 'POST');
+  const sid = _sessionId;
   _sessionId = '';
   localStorage.removeItem('hyperion_sid');
+  localStorage.removeItem('hyperion_onboarded');
+  localStorage.removeItem('hyperion_toured');
   showLogin();
+  if (sid) fetch('/api/auth/logout', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Session-Id': sid } }).catch(() => {});
 }
 
 // ── Navigation ──
@@ -12818,7 +12959,7 @@ async function _chatApprove(sessionId, approved) {
     // Remove approval banner
     const banners = document.querySelectorAll('.chat-approval');
     banners.forEach(b => {
-      b.innerHTML = `<span style="color:${approved ? 'var(--cyan)' : 'var(--red)};font-size:12px">${approved ? '&#10003; Approved' : '&#10007; Denied'}</span>`;
+      b.innerHTML = '<span style="color:' + (approved ? 'var(--cyan)' : 'var(--red)') + ';font-size:12px">' + (approved ? '\u2713 Approved' : '\u2717 Denied') + '</span>';
       setTimeout(() => b.remove(), 2000);
     });
   } catch {}

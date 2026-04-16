@@ -59,7 +59,7 @@ app.use((req, res, next) => {
 // ── Middleware ──
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static(path.join(__dirname, 'public'), { etag: false, maxAge: 0, setHeaders: (res) => res.set('Cache-Control', 'no-store') }));
 app.use(logger.requestLogger);
 app.use(metricsService.middleware());
 
@@ -141,6 +141,23 @@ app.post('/api/auth/setup', async (req, res) => {
     res.json({ ok: true, sessionId: sid, user: user.username });
   } catch (err) {
     res.status(400).json({ error: err.message });
+  }
+});
+
+app.post('/api/auth/register', async (req, res) => {
+  const { username, password } = req.body;
+  if (!username || !password) return res.status(400).json({ error: 'Username and password required' });
+  if (username.length < 3) return res.status(400).json({ error: 'Username must be at least 3 characters' });
+  if (password.length < 6) return res.status(400).json({ error: 'Password must be at least 6 characters' });
+  try {
+    const user = await auth.createUser(db, username, password, 'user');
+    const ip = req.ip || req.socket.remoteAddress || 'unknown';
+    const sid = auth.createSession(user.id, user.username, user.role, { db, ip, userAgent: req.headers['user-agent'] });
+    sessionStore.logLogin(db, { userId: user.id, username: user.username, ip, userAgent: req.headers['user-agent'], success: true });
+    res.json({ ok: true, sessionId: sid, user: user.username });
+  } catch (err) {
+    const msg = err.message.includes('UNIQUE') ? 'Username already taken' : err.message;
+    res.status(400).json({ error: msg });
   }
 });
 
@@ -380,6 +397,35 @@ app.use('/api/audit', require('./routes/audit'));
 app.use('/api/docs', require('./routes/apiDocs'));
 app.use('/api/admin', require('./routes/admin'));
 app.use('/api/webhooks', require('./routes/webhooks'));
+
+// ── AI Agent Chat ──
+app.use('/api/chat', require('./routes/chat'));
+
+// ── Restore LLM settings from DB (if user configured via UI) ──
+try {
+  const adminUser = db.prepare("SELECT id FROM users WHERE role = 'admin' LIMIT 1").get();
+  if (adminUser) {
+    const llmSettings = {};
+    const rows = db.prepare("SELECT key, value FROM settings WHERE user_id = ? AND key LIKE 'llm_%'").all(adminUser.id);
+    rows.forEach(r => { try { llmSettings[r.key] = JSON.parse(r.value); } catch { llmSettings[r.key] = r.value; } });
+    if (llmSettings.llm_provider) {
+      const envMap = { ollama: null, openai: 'OPENAI_API_KEY', gemini: 'GEMINI_API_KEY', anthropic: 'ANTHROPIC_API_KEY', xai: 'XAI_API_KEY' };
+      const modelMap = { ollama: 'OLLAMA_MODEL', openai: 'OPENAI_MODEL', gemini: 'GEMINI_MODEL', anthropic: 'ANTHROPIC_MODEL', xai: 'XAI_MODEL' };
+      if (!process.env.LLM_PROVIDERS) process.env.LLM_PROVIDERS = llmSettings.llm_provider;
+      if (llmSettings.llm_apikey && envMap[llmSettings.llm_provider]) {
+        const envKey = envMap[llmSettings.llm_provider];
+        if (!process.env[envKey]) process.env[envKey] = llmSettings.llm_apikey;
+        if (!process.env.LLM_API_KEY) process.env.LLM_API_KEY = llmSettings.llm_apikey;
+      }
+      if (llmSettings.llm_model && modelMap[llmSettings.llm_provider]) {
+        if (!process.env[modelMap[llmSettings.llm_provider]]) process.env[modelMap[llmSettings.llm_provider]] = llmSettings.llm_model;
+      }
+      if (llmSettings.llm_base_url && !process.env.LLM_BASE_URL) process.env.LLM_BASE_URL = llmSettings.llm_base_url;
+      const llmService = require('./services/llmService');
+      llmService.setProviderOrder([llmSettings.llm_provider]);
+    }
+  }
+} catch {}
 
 // ── Serve SPA ──
 app.get('*', (req, res) => {

@@ -14,6 +14,37 @@ router.get('/', (req, res) => {
   res.json(obj);
 });
 
+// ── LLM settings → process.env bridge ──
+const LLM_ENV_MAP = {
+  ollama:    { key: null, model: 'OLLAMA_MODEL', url: 'LLM_BASE_URL' },
+  openai:    { key: 'OPENAI_API_KEY', model: 'OPENAI_MODEL' },
+  gemini:    { key: 'GEMINI_API_KEY', model: 'GEMINI_MODEL' },
+  anthropic: { key: 'ANTHROPIC_API_KEY', model: 'ANTHROPIC_MODEL' },
+  xai:       { key: 'XAI_API_KEY', model: 'XAI_MODEL' },
+};
+
+function applyLlmSettings(entries) {
+  const provider = entries.llm_provider;
+  if (provider) {
+    process.env.LLM_PROVIDERS = provider;
+    const llm = require('../services/llmService');
+    llm.setProviderOrder([provider]);
+  }
+  if (entries.llm_apikey && provider) {
+    const mapping = LLM_ENV_MAP[provider];
+    if (mapping?.key) process.env[mapping.key] = entries.llm_apikey;
+    process.env.LLM_API_KEY = entries.llm_apikey;
+  }
+  if (entries.llm_model && provider) {
+    const mapping = LLM_ENV_MAP[provider];
+    if (mapping?.model) process.env[mapping.model] = entries.llm_model;
+    process.env.LLM_MODEL = entries.llm_model;
+  }
+  if (entries.llm_base_url) {
+    process.env.LLM_BASE_URL = entries.llm_base_url;
+  }
+}
+
 // PUT /api/settings — bulk upsert {key: value, ...}
 router.put('/', (req, res) => {
   const db = req.app.locals.db;
@@ -30,6 +61,12 @@ router.put('/', (req, res) => {
     }
   });
   tx();
+
+  // Apply LLM settings to process.env so llmService picks them up
+  if (entries.llm_provider || entries.llm_apikey || entries.llm_model || entries.llm_base_url) {
+    applyLlmSettings(entries);
+  }
+
   res.json({ ok: true });
 });
 

@@ -601,6 +601,18 @@ module.exports = function initDB(db) {
       PRIMARY KEY(user_id, role_id)
     );
 
+    -- AI Chat Sessions
+    CREATE TABLE IF NOT EXISTS chat_sessions (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      title TEXT DEFAULT 'New Chat',
+      messages TEXT DEFAULT '[]',
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+    CREATE INDEX IF NOT EXISTS idx_chat_sessions_user ON chat_sessions(user_id);
+    CREATE INDEX IF NOT EXISTS idx_chat_sessions_updated ON chat_sessions(updated_at);
+
     -- Metrics Snapshots (persistent)
     CREATE TABLE IF NOT EXISTS metrics_snapshots (
       id INTEGER PRIMARY KEY AUTOINCREMENT,

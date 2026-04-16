@@ -62,7 +62,7 @@ describe('LLM Service', () => {
 
   test('getProvidersInfo returns all providers with health', () => {
     const info = llm.getProvidersInfo();
-    expect(info.length).toBe(3); // ollama, openai, gemini
+    expect(info.length).toBe(5); // ollama, openai, gemini, anthropic, xai
     expect(info[0]).toHaveProperty('name');
     expect(info[0]).toHaveProperty('health');
     expect(info[0].health).toHaveProperty('failures');

@@ -1,7 +1,7 @@
 /**
  * LLM Service — Multi-provider AI with failover chain + circuit breaker
- * Providers: Ollama (local), OpenAI (cloud), Gemini (cloud)
- * Config: LLM_PROVIDERS=ollama,openai,gemini (comma-separated priority)
+ * Providers: Ollama (local), OpenAI (cloud), Gemini (cloud), Anthropic (cloud)
+ * Config: LLM_PROVIDERS=ollama,openai,gemini,anthropic (comma-separated priority)
  */
 
 const os = require('os');
@@ -77,6 +77,72 @@ const PROVIDER_CONFIGS = {
     }),
     parseChat: (json) => json.candidates?.[0]?.content?.parts?.[0]?.text || '',
     parseEmbed: (json) => json.embedding?.values || null,
+  },
+  anthropic: {
+    url: () => 'https://api.anthropic.com/v1/messages',
+    defaultModel: 'claude-sonnet-4-20250514',
+    needsKey: true,
+    keyEnv: 'ANTHROPIC_API_KEY',
+    buildChat: (messages, model, opts) => {
+      const systemMsg = messages.find(m => m.role === 'system');
+      const filtered = messages.filter(m => m.role !== 'system').map(m => ({
+        role: m.role === 'assistant' ? 'assistant' : 'user',
+        content: m.tool_results ? m.content : (typeof m.content === 'string' ? m.content : JSON.stringify(m.content)),
+      }));
+      const body = {
+        model: model || 'claude-sonnet-4-20250514',
+        max_tokens: opts?.max_tokens || 4096,
+        messages: filtered,
+      };
+      if (systemMsg) body.system = systemMsg.content;
+      if (opts?.tools) body.tools = opts.tools;
+      if (opts?.stream) body.stream = true;
+      if (opts?.temperature !== undefined) body.temperature = opts.temperature;
+      return {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': process.env.ANTHROPIC_API_KEY || process.env.LLM_API_KEY,
+          'anthropic-version': '2023-06-01',
+        },
+        body: JSON.stringify(body),
+      };
+    },
+    parseChat: (json) => {
+      if (!json.content) return '';
+      const textBlock = json.content.find(b => b.type === 'text');
+      return textBlock?.text || '';
+    },
+    parseToolCalls: (json) => {
+      if (!json.content) return [];
+      return json.content.filter(b => b.type === 'tool_use').map(b => ({
+        id: b.id,
+        name: b.name,
+        arguments: b.input,
+      }));
+    },
+  },
+  xai: {
+    url: () => 'https://api.x.ai/v1/chat/completions',
+    defaultModel: 'grok-3-mini',
+    needsKey: true,
+    keyEnv: 'XAI_API_KEY',
+    buildChat: (messages, model, opts) => ({
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${process.env.XAI_API_KEY || process.env.LLM_API_KEY}`,
+      },
+      body: JSON.stringify({
+        model: model || 'grok-3-mini',
+        messages,
+        max_tokens: opts?.max_tokens || 4096,
+        temperature: opts?.temperature ?? 0.1,
+        stream: !!opts?.stream,
+        ...(opts?.tools ? { tools: opts.tools } : {}),
+      }),
+    }),
+    parseChat: (json) => json.choices?.[0]?.message?.content || '',
   },
 };
 
@@ -399,6 +465,193 @@ function isConfigured() {
   return getProviderOrder().length > 0;
 }
 
+// ── Streaming Call (async generator) ──
+async function* callWithStreaming(messages, opts = {}) {
+  const order = getProviderOrder();
+  if (!order.length) { yield { type: 'error', data: 'No LLM providers configured' }; return; }
+
+  for (const name of order) {
+    if (!isAvailable(name)) continue;
+    const config = PROVIDER_CONFIGS[name];
+    const apiKey = process.env[config.keyEnv] || process.env.LLM_API_KEY;
+    if (config.needsKey && !apiKey) continue;
+
+    const model = opts.model || process.env[`${name.toUpperCase()}_MODEL`] || process.env.LLM_MODEL || config.defaultModel;
+    const streamOpts = { ...opts, stream: true, max_tokens: opts.max_tokens || 4096 };
+    if (opts.tools) streamOpts.tools = buildToolsForProvider(name, opts.tools);
+
+    try {
+      const url = typeof config.url === 'function' ? config.url(model) : config.url;
+      const fetchOpts = config.buildChat(messages, model, streamOpts);
+      const start = Date.now();
+      const res = await fetch(url, { ...fetchOpts, signal: AbortSignal.timeout(opts.timeout || 120000) });
+
+      if (!res.ok) {
+        const body = await res.text().catch(() => '');
+        recordFailure(name);
+        continue;
+      }
+
+      yield { type: 'provider', data: { provider: name, model } };
+      yield* readSSEStream(res, name);
+      recordSuccess(name, Date.now() - start);
+      return;
+    } catch (err) {
+      recordFailure(name);
+      console.error(`[LLM] Streaming ${name} failed:`, err.message);
+    }
+  }
+  yield { type: 'error', data: 'All LLM providers failed' };
+}
+
+// ── SSE Stream Parser ──
+async function* readSSEStream(response, provider) {
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+  let toolCalls = [];
+  let currentToolCall = null;
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+
+      const lines = buffer.split('\n');
+      buffer = lines.pop() || '';
+
+      for (const line of lines) {
+        if (!line.trim() || line.startsWith(':')) continue;
+
+        if (provider === 'anthropic') {
+          if (!line.startsWith('data: ')) continue;
+          const data = line.slice(6);
+          if (data === '[DONE]') continue;
+          let parsed;
+          try { parsed = JSON.parse(data); } catch { continue; }
+
+          if (parsed.type === 'content_block_start') {
+            if (parsed.content_block?.type === 'tool_use') {
+              currentToolCall = { id: parsed.content_block.id, name: parsed.content_block.name, arguments: '' };
+            }
+          } else if (parsed.type === 'content_block_delta') {
+            if (parsed.delta?.type === 'text_delta') {
+              yield { type: 'text_delta', data: parsed.delta.text };
+            } else if (parsed.delta?.type === 'input_json_delta') {
+              if (currentToolCall) currentToolCall.arguments += parsed.delta.partial_json;
+            }
+          } else if (parsed.type === 'content_block_stop') {
+            if (currentToolCall) {
+              try { currentToolCall.arguments = JSON.parse(currentToolCall.arguments); } catch { currentToolCall.arguments = {}; }
+              toolCalls.push(currentToolCall);
+              yield { type: 'tool_call', data: currentToolCall };
+              currentToolCall = null;
+            }
+          } else if (parsed.type === 'message_stop') {
+            // done
+          } else if (parsed.type === 'error') {
+            yield { type: 'error', data: parsed.error?.message || 'Anthropic stream error' };
+          }
+        } else if (provider === 'openai' || provider === 'xai') {
+          if (!line.startsWith('data: ')) continue;
+          const data = line.slice(6);
+          if (data === '[DONE]') continue;
+          let parsed;
+          try { parsed = JSON.parse(data); } catch { continue; }
+          const delta = parsed.choices?.[0]?.delta;
+          if (!delta) continue;
+          if (delta.content) yield { type: 'text_delta', data: delta.content };
+          if (delta.tool_calls) {
+            for (const tc of delta.tool_calls) {
+              if (tc.id) {
+                if (currentToolCall) {
+                  try { currentToolCall.arguments = JSON.parse(currentToolCall.arguments); } catch { currentToolCall.arguments = {}; }
+                  toolCalls.push(currentToolCall);
+                  yield { type: 'tool_call', data: currentToolCall };
+                }
+                currentToolCall = { id: tc.id, name: tc.function?.name || '', arguments: '' };
+              }
+              if (tc.function?.arguments) {
+                if (currentToolCall) currentToolCall.arguments += tc.function.arguments;
+              }
+            }
+          }
+          if (parsed.choices?.[0]?.finish_reason === 'tool_calls' && currentToolCall) {
+            try { currentToolCall.arguments = JSON.parse(currentToolCall.arguments); } catch { currentToolCall.arguments = {}; }
+            toolCalls.push(currentToolCall);
+            yield { type: 'tool_call', data: currentToolCall };
+            currentToolCall = null;
+          }
+        } else if (provider === 'gemini') {
+          // Gemini streams JSON objects separated by newlines
+          let parsed;
+          try { parsed = JSON.parse(line.startsWith('data: ') ? line.slice(6) : line); } catch { continue; }
+          const text = parsed.candidates?.[0]?.content?.parts?.[0]?.text;
+          if (text) yield { type: 'text_delta', data: text };
+          const fnCall = parsed.candidates?.[0]?.content?.parts?.find(p => p.functionCall);
+          if (fnCall) {
+            const tc = { id: `gemini-${Date.now()}`, name: fnCall.functionCall.name, arguments: fnCall.functionCall.args || {} };
+            toolCalls.push(tc);
+            yield { type: 'tool_call', data: tc };
+          }
+        } else if (provider === 'ollama') {
+          let parsed;
+          try { parsed = JSON.parse(line); } catch { continue; }
+          if (parsed.message?.content) yield { type: 'text_delta', data: parsed.message.content };
+          if (parsed.done) break;
+        }
+      }
+    }
+  } finally {
+    reader.releaseLock();
+  }
+
+  yield { type: 'done', data: { toolCalls } };
+}
+
+// ── Tool Format Adapters ──
+function buildToolsForProvider(provider, tools) {
+  if (!tools?.length) return undefined;
+
+  if (provider === 'anthropic') {
+    return tools.map(t => ({
+      name: t.name,
+      description: t.description,
+      input_schema: t.parameters || { type: 'object', properties: {} },
+    }));
+  }
+  if (provider === 'openai' || provider === 'xai') {
+    return tools.map(t => ({
+      type: 'function',
+      function: { name: t.name, description: t.description, parameters: t.parameters || { type: 'object', properties: {} } },
+    }));
+  }
+  if (provider === 'gemini') {
+    return [{ functionDeclarations: tools.map(t => ({
+      name: t.name,
+      description: t.description,
+      parameters: t.parameters || { type: 'object', properties: {} },
+    })) }];
+  }
+  return undefined; // ollama doesn't support tools natively
+}
+
+function formatToolResult(provider, toolCallId, toolName, result) {
+  const content = typeof result === 'string' ? result : JSON.stringify(result);
+  if (provider === 'anthropic') {
+    return { role: 'user', content: [{ type: 'tool_result', tool_use_id: toolCallId, content }] };
+  }
+  if (provider === 'openai' || provider === 'xai') {
+    return { role: 'tool', tool_call_id: toolCallId, content };
+  }
+  if (provider === 'gemini') {
+    return { role: 'user', parts: [{ functionResponse: { name: toolName, response: { result: content } } }] };
+  }
+  // Fallback: inject as user message
+  return { role: 'user', content: `[Tool Result: ${toolName}]\n${content}` };
+}
+
 // Initialize prompt injection on load
 initPromptInjection();
 
@@ -406,6 +659,7 @@ module.exports = {
   generateCommand,
   isConfigured,
   callWithFailover,
+  callWithStreaming,
   getEmbedding,
   getProvidersInfo,
   testProvider,
@@ -417,4 +671,7 @@ module.exports = {
   defaultSystemPrompt,
   isDangerous,
   cleanResponse,
+  buildToolsForProvider,
+  formatToolResult,
+  PROVIDER_CONFIGS,
 };
