@@ -13,7 +13,7 @@
   <br />
   <a href="#quick-start">Quick Start</a> &middot;
   <a href="#features">Features</a> &middot;
-  <a href="#screenshots">Screenshots</a> &middot;
+  <a href="#onboarding">Onboarding</a> &middot;
   <a href="#configuration">Configuration</a> &middot;
   <a href="#api">API</a> &middot;
   <a href="#architecture">Architecture</a>
@@ -41,7 +41,7 @@ npm install
 npm start
 ```
 
-Open **http://localhost:3333** in your browser. On first launch you'll create an admin account, and you're in.
+Open **http://localhost:3333** in your browser. On first launch you'll create an account through the **6-step onboarding wizard**, and you're in.
 
 ### Docker
 
@@ -56,6 +56,62 @@ Data persists in a `./data` volume. Custom port: `PORT=8080 docker compose up -d
 ```bash
 npm run dev   # auto-reload on file changes
 ```
+
+---
+
+## Onboarding
+
+New users get a polished 6-step setup wizard followed by an interactive guided tour:
+
+### Setup Wizard
+
+| Step | What Happens |
+|------|-------------|
+| **1. Welcome** | Hyperion branding + quick intro — takes under a minute |
+| **2. AI Provider** | Choose from 5 providers (Ollama, Gemini, OpenAI, Claude, Grok). Enter API key, test connection with live latency feedback |
+| **3. AI Capabilities** | Overview of agentic features — command execution, Docker/Git control, automation |
+| **4. Workspace Preset** | Pick a preset (DevOps, Developer, System Admin, All-Purpose) to auto-configure your pinned favorites |
+| **5. Theme** | Choose Dark, Light, or System theme with live preview |
+| **6. Ready** | Summary checklist + pulsing "Launch Hyperion" button |
+
+### Guided Tour
+
+After setup, a 5-step spotlight walkthrough highlights key UI areas:
+1. **Sidebar Navigation** — 55+ tools organized in collapsible sections
+2. **Terminal** — Full PTY with split panes and broadcast mode
+3. **AI Chat** — Agentic chat that can run commands and manage infrastructure
+4. **Quick Actions** — Settings, notifications, system memory
+5. **Command Palette** — `Cmd+K` for instant search and launch
+
+### Account Registration
+
+Users can create new accounts directly from the login page — no admin intervention needed. Accounts are created with the `user` role by default.
+
+---
+
+## Navigation
+
+Hyperion uses a **hamburger sidebar** navigation system:
+
+- **Top bar**: Logo | ☰ Menu | Search | Settings | Notifications | Memory | Logout
+- **☰ Hamburger** opens a slide-out sidebar (272px) with all tools organized by section
+- **Pin favorites** with ★ stars for quick access
+- **Search** (`/` shortcut) filters across all 55+ tools instantly
+- **Command palette** (`Cmd+K`) for keyboard-driven navigation
+
+### Navigation Sections
+
+| Section | Tools |
+|---------|-------|
+| **Core** | Terminal, Files, Code Runner, Notebooks, Snippets |
+| **Workspace** | Canvas, Markdown, Notes, Bookmarks, Clipboard, Data Viewer, Pomodoro |
+| **AI & Automation** | Assistant, NOVA, AI Chat, Agents, Workflows, Skills, Plugins |
+| **DevOps** | Git, Docker, SSH Tunnels, DB Explorer, Env Vars, Cron, Processes |
+| **Network & API** | HTTP Client, WebSocket, Mock API, Network, Load Test, Link Check, Webhooks |
+| **Monitoring** | System Info, Monitor, Logs, Analytics, Metrics, Health, Remote Desktop |
+| **Dev Tools** | Toolkit, Regex, JWT, Diff, JSON, YAML, Base64, Hash, UUID, Colors, Cron Builder, Images, Text Tools, Lorem, Deps Audit |
+| **Security** | Vault |
+| **Admin** | Backups, Audit Log, API Docs, Shortcuts, Widgets, File History |
 
 ---
 
@@ -77,10 +133,13 @@ Hyperion ships **67 route modules**, **81 services**, and **1,970 tests** out of
 
 | Tool | What It Does |
 |------|-------------|
+| **AI Chat** | Agentic chat interface with tool-calling support. Run commands, manage Docker, automate tasks through conversation. Side-by-side tool approval system. |
 | **AI Agents** | Create autonomous agents with goals, tools, and memory. Schedule them on cron. |
 | **Nova** | Natural-language shell -- describe what you want in English and Nova translates it to commands. |
-| **LLM Service** | Multi-provider AI: Ollama, OpenAI, Gemini with automatic failover. One config, any model. |
+| **LLM Service** | Multi-provider AI with 5 providers: **Ollama** (free, local), **Gemini** (free tier), **OpenAI**, **Claude/Anthropic**, **Grok/xAI**. Automatic failover between providers. |
 | **Workflows** | Visual workflow builder. Chain steps, conditionals, loops. Run manually or on schedule. |
+| **Skills** | Extensible skill system for adding custom AI capabilities. |
+| **Plugins** | Hot-reloadable plugin architecture with isolated contexts. |
 | **Cron Scheduler** | Full cron expression builder. Schedule any task, agent, or workflow. Execution history and logs. |
 
 ### Developer Tools
@@ -133,6 +192,7 @@ Hyperion ships **67 route modules**, **81 services**, and **1,970 tests** out of
 ### Security
 
 - **Authentication** with bcrypt-hashed passwords and rate limiting (5 attempts/min/IP)
+- **Account Registration** — new users can self-register from the login page
 - **Two-Factor Authentication** (TOTP) with QR code setup
 - **API Key** support for programmatic access
 - **Role-Based Access Control** (Admin, Operator, Developer, Viewer + custom roles)
@@ -156,7 +216,7 @@ Eight built-in themes inspired by sci-fi computing systems:
 | **Cortana** | Purple | Soft, intelligent, approachable. |
 | **Solarized** | Gold | Classic developer palette. Easy on the eyes. |
 
-Custom accent colors, font sizes, border radius, and compact mode. Themes persist per user.
+Custom accent colors, font sizes, border radius, and compact mode. Themes persist per user. Theme selection is part of the onboarding wizard.
 
 ---
 
@@ -176,7 +236,7 @@ Every tool works immediately. No installing Postman, no configuring pgAdmin, no 
 
 ### 4. AI That Knows Your System
 
-AI agents and Nova have direct access to your terminal, files, and system state. They don't just generate text -- they can actually run commands, read your code, manage your processes, and automate your workflows.
+AI Chat and Nova have direct access to your terminal, files, and system state. They don't just generate text -- they can actually run commands, read your code, manage your processes, and automate your workflows. Connect any provider (Ollama, Gemini, OpenAI, Claude, Grok) in the onboarding wizard or settings.
 
 ### 5. Lightweight By Design
 
@@ -199,10 +259,38 @@ All configuration is through environment variables. Create a `.env` file or pass
 | `MCP_ENABLED` | `false` | Enable the MCP (Model Context Protocol) server |
 | `MCP_PORT` | `3334` | MCP server port |
 | `DISCOVERY_ENABLED` | `false` | Enable service discovery |
-| `LLM_PROVIDERS` | -- | Comma-separated LLM providers (`ollama`, `openai`, `gemini`) |
+| `LLM_PROVIDER` | -- | Active LLM provider (`ollama`, `openai`, `gemini`, `anthropic`, `xai`) |
 | `LLM_API_KEY` | -- | API key for the configured LLM provider |
+| `LLM_MODEL` | -- | Model name (e.g. `gemini-2.5-flash`, `gpt-4o`, `llama3.1`) |
+| `LLM_FALLBACK_PROVIDER` | -- | Fallback provider if primary fails |
+| `OLLAMA_BASE_URL` | `http://localhost:11434` | Ollama server URL (for local models) |
 | `LOG_LEVEL` | `info` | Logging verbosity (`debug`, `info`, `warn`, `error`) |
 | `LOG_FILE` | -- | Path to write logs to a file |
+
+### AI Provider Setup
+
+Configure your AI provider during onboarding or via settings:
+
+```bash
+# Ollama (free, local)
+LLM_PROVIDER=ollama
+
+# Google Gemini (free tier available)
+LLM_PROVIDER=gemini
+LLM_API_KEY=your-gemini-key
+
+# OpenAI
+LLM_PROVIDER=openai
+LLM_API_KEY=sk-...
+
+# Anthropic Claude
+LLM_PROVIDER=anthropic
+LLM_API_KEY=sk-ant-...
+
+# xAI Grok
+LLM_PROVIDER=xai
+LLM_API_KEY=xai-...
+```
 
 ---
 
@@ -214,14 +302,29 @@ All configuration is through environment variables. Create a `.env` file or pass
 # Health check (no auth required)
 curl http://localhost:3333/api/health
 
+# Register a new account
+curl -X POST http://localhost:3333/api/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{"username":"myuser","password":"mypassword"}'
+
 # Login
 curl -X POST http://localhost:3333/api/auth/login \
   -H "Content-Type: application/json" \
-  -d '{"username":"admin","password":"yourpassword"}'
+  -d '{"username":"myuser","password":"mypassword"}'
 
 # Use the returned session ID
 curl http://localhost:3333/api/files/list \
   -H "X-Session-Id: your-session-id"
+
+# Test AI provider connection
+curl -X POST http://localhost:3333/api/llm/test \
+  -H "X-Session-Id: your-session-id"
+
+# AI Chat
+curl -X POST http://localhost:3333/api/chat \
+  -H "X-Session-Id: your-session-id" \
+  -H "Content-Type: application/json" \
+  -d '{"message":"List all running Docker containers","sessionId":"chat-session-1"}'
 ```
 
 **WebSocket** -- Connect to `/ws/*` for live terminal streams, system monitoring, notebook collaboration, and AI agent events.
@@ -236,9 +339,9 @@ curl http://localhost:3333/api/files/list \
 hyperion/
   server.js                # Entry point -- Express + WebSocket + SQLite
   |
-  +-- routes/              # 67 REST API route modules
+  +-- routes/              # 67+ REST API route modules
   |     admin, agents, analytics, audit, backup, base64, bookmarks, browser,
-  |     canvas, channels, clipboard, code, colorTools, cron, cronBuilder,
+  |     canvas, channels, chat, clipboard, code, colorTools, cron, cronBuilder,
   |     dashboard, dataViewer, dbExplorer, depAuditor, devToolkit, diffViewer,
   |     discovery, docker, doctor, envManager, files, git, hash, http,
   |     imageTools, json, jwtDebugger, linkChecker, llm, loadTester, logViewer,
@@ -247,17 +350,17 @@ hyperion/
   |     processManager, regexTester, remote, search, settings, snippets, ssh,
   |     system, textTransform, uuid, vault, webhooks, workflows, wsClient, yaml
   |
-  +-- services/            # 81 business logic modules
-  |     auth, db, auditLog, sessionStore, rbac, themeManager, configPorter,
-  |     healthCheck, pluginLoader, skillLoader, mcpServer, discovery,
-  |     cronScheduler, vectorMemory, remoteDesktop, monitor, loadTester,
-  |     processManager, docker, ...
+  +-- services/            # 81+ business logic modules
+  |     agentLoop, auth, db, auditLog, sessionStore, rbac, themeManager,
+  |     configPorter, healthCheck, pluginLoader, skillLoader, mcpServer,
+  |     discovery, cronScheduler, vectorMemory, remoteDesktop, monitor,
+  |     loadTester, processManager, docker, llmService, ...
   |
-  +-- tests/               # 94 test files, 1,970 tests (Vitest)
+  +-- tests/               # 94+ test files, 1,970+ tests (Vitest)
   |
   +-- public/              # SPA frontend (vanilla JS, no build step)
-  |     +-- index.html     # Single HTML shell
-  |     +-- js/hyperion.js # 12,000-line SPA engine
+  |     +-- index.html     # Single HTML shell with inline critical CSS
+  |     +-- js/hyperion.js # 13,000+ line SPA engine
   |     +-- css/hyperion.css
   |
   +-- agents/              # AI agent definitions
@@ -267,11 +370,13 @@ hyperion/
 
 **Tech stack**: Node.js, Express 4, better-sqlite3 (WAL mode), WebSocket (`ws`), `node-pty`, vanilla JavaScript SPA.
 
-**Database**: 44 SQLite tables with 22+ performance indexes. Single file (`hyperion.db`), created automatically on first run. WAL mode for concurrent read/write performance.
+**Database**: 44+ SQLite tables with 22+ performance indexes. Single file (`hyperion.db`), created automatically on first run. WAL mode for concurrent read/write performance.
 
-**Frontend**: No React, no Vue, no build step. One HTML file, one 12,000-line JavaScript file, one CSS file. Every page is a function. Navigation is a `go()` call. The entire UI loads in under 500ms.
+**Frontend**: No React, no Vue, no build step. One HTML file, one 13,000+ line JavaScript file, one CSS file. Every page is a function. Navigation is a `go()` call. Hamburger sidebar with organized sections. The entire UI loads in under 500ms.
 
-**Auth**: bcrypt password hashing, 24-hour sessions, rate limiting (5/min/IP), optional TOTP 2FA, API key support, RBAC with granular permissions.
+**Auth**: bcrypt password hashing, self-service registration, 24-hour sessions, rate limiting (5/min/IP), optional TOTP 2FA, API key support, RBAC with granular permissions.
+
+**AI**: Multi-provider LLM service supporting Ollama, Gemini, OpenAI, Claude, and Grok. Agentic chat with tool-calling, command execution approval, and streaming responses. Provider settings persisted to environment via `applyLlmSettings()` bridge.
 
 **Dependencies**: Intentionally minimal -- 7 runtime packages: `express`, `better-sqlite3`, `bcryptjs`, `uuid`, `ws`, `multer`, `node-pty`.
 
@@ -280,12 +385,12 @@ hyperion/
 ## Testing
 
 ```bash
-npm test              # run all 1,970 tests
+npm test              # run all 1,970+ tests
 npx vitest            # watch mode
 npx vitest run -t "auth"   # run tests matching "auth"
 ```
 
-94 test files covering routes, services, security, UI, and integration scenarios.
+94+ test files covering routes, services, security, UI, and integration scenarios.
 
 ---
 
@@ -295,6 +400,7 @@ npx vitest run -t "auth"   # run tests matching "auth"
 - **npm** 9+
 - Any OS: macOS, Linux, Windows (WSL recommended)
 - Optional: Docker for containerized deployment
+- Optional: Ollama for free local AI models
 
 ---
 
