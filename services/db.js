@@ -613,6 +613,87 @@ module.exports = function initDB(db) {
     CREATE INDEX IF NOT EXISTS idx_chat_sessions_user ON chat_sessions(user_id);
     CREATE INDEX IF NOT EXISTS idx_chat_sessions_updated ON chat_sessions(updated_at);
 
+    -- Task Engine Sessions
+    CREATE TABLE IF NOT EXISTS task_sessions (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      goal TEXT NOT NULL,
+      status TEXT DEFAULT 'planning',
+      plan TEXT DEFAULT '[]',
+      results TEXT DEFAULT '[]',
+      current_step INTEGER DEFAULT 0,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+    CREATE INDEX IF NOT EXISTS idx_task_sessions_user ON task_sessions(user_id);
+    CREATE INDEX IF NOT EXISTS idx_task_sessions_status ON task_sessions(status);
+
+    -- Usage Patterns (Tier 3: Learning Engine)
+    CREATE TABLE IF NOT EXISTS usage_patterns (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      pattern_type TEXT NOT NULL,
+      key TEXT NOT NULL,
+      value TEXT DEFAULT '{}',
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE(user_id, pattern_type, key)
+    );
+    CREATE INDEX IF NOT EXISTS idx_usage_patterns_user ON usage_patterns(user_id, pattern_type);
+
+    -- Inferred Preferences (Tier 3)
+    CREATE TABLE IF NOT EXISTS user_preferences (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      preference_key TEXT NOT NULL,
+      preference_value TEXT NOT NULL,
+      confidence REAL DEFAULT 0.5,
+      source TEXT DEFAULT 'inferred',
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE(user_id, preference_key)
+    );
+    CREATE INDEX IF NOT EXISTS idx_user_prefs_user ON user_preferences(user_id);
+
+    -- Task Feedback (Tier 3)
+    CREATE TABLE IF NOT EXISTS task_feedback (
+      id TEXT PRIMARY KEY,
+      task_session_id TEXT NOT NULL,
+      user_id TEXT NOT NULL,
+      rating INTEGER,
+      comment TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+    CREATE INDEX IF NOT EXISTS idx_task_feedback_session ON task_feedback(task_session_id);
+
+    -- Strategy Library (Tier 4: Self-Improvement)
+    CREATE TABLE IF NOT EXISTS strategy_library (
+      id TEXT PRIMARY KEY,
+      task_pattern TEXT NOT NULL,
+      strategy TEXT NOT NULL,
+      success_rate REAL DEFAULT 0.5,
+      uses INTEGER DEFAULT 0,
+      last_used DATETIME,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+    CREATE INDEX IF NOT EXISTS idx_strategy_pattern ON strategy_library(task_pattern);
+
+    -- Agent Experiences (Tier 2: Cognitive Core)
+    CREATE TABLE IF NOT EXISTS agent_experiences (
+      id TEXT PRIMARY KEY,
+      task_session_id TEXT,
+      step_index INTEGER,
+      goal_summary TEXT NOT NULL,
+      tool_sequence TEXT DEFAULT '[]',
+      outcome TEXT NOT NULL,
+      reflection_notes TEXT,
+      error_type TEXT,
+      recovery_action TEXT,
+      embedding BLOB,
+      confidence REAL DEFAULT 0.5,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+    CREATE INDEX IF NOT EXISTS idx_exp_outcome ON agent_experiences(outcome);
+    CREATE INDEX IF NOT EXISTS idx_exp_session ON agent_experiences(task_session_id);
+
     -- Metrics Snapshots (persistent)
     CREATE TABLE IF NOT EXISTS metrics_snapshots (
       id INTEGER PRIMARY KEY AUTOINCREMENT,

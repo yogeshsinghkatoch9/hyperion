@@ -6,6 +6,7 @@ const express = require('express');
 const router = express.Router();
 const { v4: uuidv4 } = require('uuid');
 const agentLoop = require('../services/agentLoop');
+const usageTracker = require('../services/usageTracker');
 
 // ── Session CRUD ──
 
@@ -161,11 +162,17 @@ router.post('/stream', async (req, res) => {
 
 // ── Approve/Deny Tool Call ──
 router.post('/approve', (req, res) => {
+  const db = req.app.locals.db;
   const { sessionId, approved } = req.body;
   if (!sessionId) return res.status(400).json({ error: 'sessionId required' });
 
   const pending = agentLoop.getPendingApproval(sessionId);
   if (!pending) return res.status(404).json({ error: 'No pending approval' });
+
+  // Tier 3: Record tool approval for learning
+  try {
+    usageTracker.recordToolApproval(db, req.session.userId, pending.toolName, pending.args, !!approved);
+  } catch {}
 
   pending.resolve(!!approved);
   res.json({ ok: true, approved: !!approved });

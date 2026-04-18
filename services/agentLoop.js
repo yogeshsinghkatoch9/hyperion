@@ -10,7 +10,7 @@ const { execSync, spawn } = require('child_process');
 const llm = require('./llmService');
 
 const HOME = os.homedir();
-const MAX_ITERATIONS = 10;
+const MAX_ITERATIONS = parseInt(process.env.AGENT_MAX_ITERATIONS, 10) || 25;
 const TOOL_TIMEOUT = 30000;
 const CMD_TIMEOUT = 120000;
 
@@ -420,10 +420,22 @@ const executors = {
 };
 
 // ── Check if tool needs approval ──
-function needsApproval(toolName, args) {
+// Optional context: { db, userId } — if provided, checks auto-approve from learned preferences
+function needsApproval(toolName, args, context) {
   const rule = APPROVAL_RULES[toolName];
-  if (rule === 'always') return true;
   if (rule === 'never') return false;
+
+  // Tier 3: Check learned auto-approve before requiring approval
+  if (context?.db && context?.userId) {
+    try {
+      const preferenceModel = require('./preferenceModel');
+      if (preferenceModel.shouldAutoApprove(context.db, context.userId, toolName, args)) {
+        return false;
+      }
+    } catch {}
+  }
+
+  if (rule === 'always') return true;
   if (typeof rule === 'function') return rule(args);
   return true; // Default: require approval for unknown tools
 }
@@ -570,7 +582,7 @@ async function* runAgentLoop(userMessage, conversationHistory = [], sessionId = 
     messages.push(...toolResults);
   }
 
-  yield { type: 'error', data: 'Max iterations reached (10)' };
+  yield { type: 'error', data: `Max iterations reached (${MAX_ITERATIONS})` };
   yield { type: 'done', data: { iterations: MAX_ITERATIONS, provider, maxReached: true } };
 }
 

@@ -47,6 +47,8 @@ const NAV_GROUPS = [
     { page: 'skills', label: 'Skills', icon: '<path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>' },
     { page: 'plugins', label: 'Plugins', icon: '<path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/>' },
     { page: 'chat', label: 'AI Chat', icon: '<path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z"/>' },
+    { page: 'contextbridge', label: 'Context Bridge', icon: '<circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/>' },
+    { page: 'taskengine', label: 'Task Engine', icon: '<path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/><circle cx="19" cy="5" r="3" fill="currentColor"/>' },
   ]},
   { id: 'devops', label: 'DevOps', icon: '&#9881;', items: [
     { page: 'gitclient', label: 'Git', icon: '<circle cx="18" cy="18" r="3"/><circle cx="6" cy="6" r="3"/><path d="M13 6h3a2 2 0 012 2v7"/><path d="M6 9v12"/>' },
@@ -125,10 +127,10 @@ let _navCollapsed = {};
 
 // ── Mega-menu: combine 10 groups into 4 categories ──
 const NAV_MEGA = [
+  { id: 'server', label: 'Server', groups: ['monitoring', 'devops'] },
   { id: 'dev', label: 'Dev', groups: ['core', 'workspace'] },
   { id: 'ai', label: 'AI', groups: ['ai'] },
-  { id: 'infra', label: 'Infra', groups: ['devops', 'network', 'monitoring'] },
-  { id: 'toolkit', label: 'Toolkit', groups: ['tools', 'security', 'admin'] },
+  { id: 'toolkit', label: 'Toolkit', groups: ['tools', 'network', 'security', 'admin'] },
 ];
 
 function _navSvg(iconPath) {
@@ -626,7 +628,7 @@ const OB_PRESETS = [
   { id: 'devops', label: 'DevOps', icon: '🐳', desc: 'Docker, monitoring, and CI/CD', favs: ['docker', 'gitclient', 'terminal', 'monitor', 'logs', 'cronmanager'], defaultPage: 'terminal' },
   { id: 'developer', label: 'Developer', icon: '💻', desc: 'Code, notebooks, and version control', favs: ['terminal', 'code', 'notebooks', 'snippets', 'deps', 'gitclient'], defaultPage: 'code' },
   { id: 'sysadmin', label: 'System Admin', icon: '🖥️', desc: 'System management and networking', favs: ['system', 'processes', 'nettools', 'backups', 'vault', 'logs'], defaultPage: 'system' },
-  { id: 'general', label: 'All-Purpose', icon: '⚡', desc: 'A bit of everything', favs: ['dashboard', 'terminal', 'files', 'assistant', 'chat', 'docker'], defaultPage: 'dashboard' },
+  { id: 'general', label: 'All-Purpose', icon: '⚡', desc: 'A bit of everything', favs: ['dashboard', 'terminal', 'docker', 'system', 'files'], defaultPage: 'dashboard' },
 ];
 
 function showOnboarding() {
@@ -1089,7 +1091,8 @@ async function go(p) {
   _trackNavRecent(p);
   _highlightActiveNav();
   const main = document.getElementById('main');
-  const loaders = { dashboard: loadDashboard, assistant: loadAssistant, nova: loadNova, terminal: loadTerminal, code: loadCode, files: loadFiles, notebooks: loadNotebooks, agents: loadAgents, workflows: loadWorkflows, system: loadSystem, settings: loadSettings, plugins: loadPluginsPage, skills: loadSkillsPage, canvas: loadCanvasPage, doctor: loadDoctorPage, memory: loadMemoryPage, channels: loadChannelsPage, remote: loadRemote, monitor: loadMonitor, analytics: loadAnalytics, httpclient: loadHttpClient, vault: loadVault, dbexplorer: loadDbExplorer, docker: loadDocker, gitclient: loadGitClient, logs: loadLogViewer, toolkit: loadToolkit, snippets: loadSnippets, envmanager: loadEnvManager, cronmanager: loadCronManager, processes: loadProcessManager, nettools: loadNetTools, wstester: loadWsTester, markdown: loadMarkdown, mockapi: loadMockApi, deps: loadDeps, notes: loadNotes, bookmarks: loadBookmarks, loadtest: loadLoadTest, dataview: loadDataView, texttools: loadTextTools, clipboard: loadClipboard, pomodoro: loadPomodoro, linkcheck: loadLinkCheck, regex: loadRegex, jwt: loadJwt, diff: loadDiff, images: loadImages, cronexpr: loadCronExpr, colors: loadColors, base64: loadBase64, hashgen: loadHashGen, uuidgen: loadUuidGen, jsontools: loadJsonTools, yamltools: loadYamlTools, loremgen: loadLoremGen, backups: loadBackups, shortcuts: loadShortcuts, apidocs: loadApiDocs, tunnels: loadTunnels, filehistory: loadFileHistory, webhooks: loadWebhooks, widgets: loadWidgets, metricshistory: loadMetricsHistory, auditviewer: loadAuditViewer, healthdash: loadHealthDashboard, chat: loadChat };
+  main.setAttribute('data-page', p);
+  const loaders = { dashboard: loadDashboard, assistant: loadAssistant, nova: loadNova, terminal: loadTerminal, code: loadCode, files: loadFiles, notebooks: loadNotebooks, agents: loadAgents, workflows: loadWorkflows, system: loadSystem, settings: loadSettings, plugins: loadPluginsPage, skills: loadSkillsPage, canvas: loadCanvasPage, doctor: loadDoctorPage, memory: loadMemoryPage, channels: loadChannelsPage, remote: loadRemote, monitor: loadMonitor, analytics: loadAnalytics, httpclient: loadHttpClient, vault: loadVault, dbexplorer: loadDbExplorer, docker: loadDocker, gitclient: loadGitClient, logs: loadLogViewer, toolkit: loadToolkit, snippets: loadSnippets, envmanager: loadEnvManager, cronmanager: loadCronManager, processes: loadProcessManager, nettools: loadNetTools, wstester: loadWsTester, markdown: loadMarkdown, mockapi: loadMockApi, deps: loadDeps, notes: loadNotes, bookmarks: loadBookmarks, loadtest: loadLoadTest, dataview: loadDataView, texttools: loadTextTools, clipboard: loadClipboard, pomodoro: loadPomodoro, linkcheck: loadLinkCheck, regex: loadRegex, jwt: loadJwt, diff: loadDiff, images: loadImages, cronexpr: loadCronExpr, colors: loadColors, base64: loadBase64, hashgen: loadHashGen, uuidgen: loadUuidGen, jsontools: loadJsonTools, yamltools: loadYamlTools, loremgen: loadLoremGen, backups: loadBackups, shortcuts: loadShortcuts, apidocs: loadApiDocs, tunnels: loadTunnels, filehistory: loadFileHistory, webhooks: loadWebhooks, widgets: loadWidgets, metricshistory: loadMetricsHistory, auditviewer: loadAuditViewer, healthdash: loadHealthDashboard, chat: loadChat, contextbridge: loadContextBridge, taskengine: loadTaskEngine };
   // Page exit animation
   if (main.innerHTML && !main.classList.contains('page-enter')) {
     main.classList.add('page-exit');
@@ -1159,6 +1162,7 @@ function startSystemWs() {
         _sysHistory.push(msg.data);
         if (_sysHistory.length > 60) _sysHistory.shift();
         if (page === 'system') updateSystemLive(msg.data);
+        if (page === 'dashboard') _updateDashboardLive(msg.data);
       } else if (msg.type === 'system_history') {
         _sysHistory = msg.data || [];
         if (page === 'system') refreshSystemCharts();
@@ -4151,113 +4155,406 @@ function closeMobileSidebar() {
   }
 }
 
-// ═══ DASHBOARD ═══
+// ═══ DASHBOARD — SERVER COMMAND CENTER ═══
+let _dashDockerTimer = null;
+
 async function loadDashboard() {
   const main = document.getElementById('main');
-  const [recent, agents, stats, activity] = await Promise.all([
-    api('/api/assistant/recent').catch(() => []),
-    api('/api/agents').catch(() => []),
+  const [stats, activity, sysInfo, containers, disks, ports] = await Promise.all([
     api('/api/dashboard/stats').catch(() => ({})),
     api('/api/dashboard/activity').catch(() => ({ items: [] })),
+    api('/api/system/info').catch(() => ({})),
+    api('/api/docker/containers?all=true').catch(() => null),
+    api('/api/system/disk').catch(() => []),
+    api('/api/monitor/ports').catch(() => []),
   ]);
 
-  const runningAgents = (agents || []).filter(a => a.status === 'running');
-  const totalAgents = (agents || []).length;
   const lastSys = _sysHistory.length ? _sysHistory[_sysHistory.length - 1] : null;
-  const uptime = lastSys ? _fmtUptime(lastSys.uptime) : '--';
-  const activityItems = (activity.items || []).slice(0, 10);
+  const cpuPct = lastSys ? Math.round(lastSys.cpuPercent) : 0;
+  const memPct = lastSys ? Math.round(lastSys.memPercent) : 0;
+  const uptime = sysInfo.uptime ? _fmtUptime(sysInfo.uptime) : (lastSys ? _fmtUptime(lastSys.uptime) : '--');
+  const activityItems = (activity.items || []).slice(0, 8);
   const activityIcons = { command: '>', agent_log: 'A', notebook: 'N', clipboard: '📋', bookmark: '🔖', pomodoro: '🍅' };
 
-  // Quick launch tracking
-  const qlVisits = JSON.parse(localStorage.getItem('hyperion_ql') || '{}');
-  const topPages = Object.entries(qlVisits).sort((a,b) => b[1] - a[1]).slice(0, 8);
+  // Network rate from last two history points
+  let netUp = 0, netDown = 0;
+  if (_sysHistory.length >= 2) {
+    const cur = _sysHistory[_sysHistory.length - 1];
+    const prev = _sysHistory[_sysHistory.length - 2];
+    netUp = Math.max(0, ((cur.netBytesSent || 0) - (prev.netBytesSent || 0)) / 2);
+    netDown = Math.max(0, ((cur.netBytesRecv || 0) - (prev.netBytesRecv || 0)) / 2);
+  }
 
-  const cpuPct = lastSys ? lastSys.cpuPercent : 0;
-  const memPct = lastSys ? lastSys.memPercent : 0;
+  // Format bytes/sec
+  const fmtRate = (b) => {
+    if (b > 1048576) return (b / 1048576).toFixed(1) + ' MB/s';
+    if (b > 1024) return (b / 1024).toFixed(0) + ' KB/s';
+    return Math.round(b) + ' B/s';
+  };
+
+  // Disk usage for KPI card
+  const rootDisk = (disks || []).find(d => (d.mountpoint || d.mount || '').match(/^\/$|^C:\\/)) || (disks || [])[0];
+  const diskPct = rootDisk ? parseInt(String(rootDisk.usePercent || rootDisk.use || 0)) : 0;
+
+  // Container stats
+  const containerList = containers || [];
+  const runningCount = containerList.filter(c => (c.state || c.State || '').toLowerCase() === 'running').length;
+  const shownContainers = containerList.slice(0, 6);
 
   main.innerHTML = `
     <div class="page">
       <div class="page-header">
-        <span class="page-title">Dashboard</span>
-        <span style="margin-left:auto;font:400 13px var(--sans);color:var(--text3)">Welcome back</span>
+        <span class="page-title">Server</span>
+        <span style="margin-left:auto;font:400 12px var(--mono);color:var(--text3)">${sysInfo.hostname || 'localhost'}</span>
       </div>
       <div class="page-pad">
 
-        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px">
-          <div style="background:var(--bg2);border:1px solid var(--border);border-radius:14px;padding:20px;transition:border-color 0.2s">
-            <div style="font:500 10px var(--sans);text-transform:uppercase;letter-spacing:1.2px;color:var(--text3);margin-bottom:10px">Snippets</div>
-            <div style="font:700 28px var(--mono);color:var(--cyan)">${stats.snippets || 0}</div>
+        <!-- Row 1: Hero KPI Strip -->
+        <div class="hkpi-grid">
+          <div class="hkpi-card">
+            <div class="hkpi-label">CPU</div>
+            <div class="hkpi-value" id="dashCpuVal">${cpuPct}%</div>
+            <div class="hkpi-sub">${sysInfo.cpuModel ? sysInfo.cpuModel.split(' ').slice(0,3).join(' ') : (sysInfo.cpuCount || '--') + ' cores'}</div>
+            <canvas class="hkpi-spark" id="dashSparkCpu"></canvas>
           </div>
-          <div style="background:var(--bg2);border:1px solid var(--border);border-radius:14px;padding:20px;transition:border-color 0.2s">
-            <div style="font:500 10px var(--sans);text-transform:uppercase;letter-spacing:1.2px;color:var(--text3);margin-bottom:10px">Agents</div>
-            <div style="display:flex;align-items:baseline;gap:6px">
-              <span style="font:700 28px var(--mono);color:var(--green)">${runningAgents.length}</span>
-              <span style="font:400 14px var(--sans);color:var(--text3)">/ ${totalAgents}</span>
-            </div>
+          <div class="hkpi-card">
+            <div class="hkpi-label">Memory</div>
+            <div class="hkpi-value" id="dashMemVal">${memPct}%</div>
+            <div class="hkpi-sub">${sysInfo.totalMem ? (sysInfo.totalMem / 1073741824).toFixed(1) + ' GB total' : '--'}</div>
+            <canvas class="hkpi-spark" id="dashSparkMem"></canvas>
           </div>
-          <div style="background:var(--bg2);border:1px solid var(--border);border-radius:14px;padding:20px;transition:border-color 0.2s">
-            <div style="font:500 10px var(--sans);text-transform:uppercase;letter-spacing:1.2px;color:var(--text3);margin-bottom:10px">Notebooks</div>
-            <div style="font:700 28px var(--mono);color:var(--purple)">${stats.notebooks || 0}</div>
+          <div class="hkpi-card">
+            <div class="hkpi-label">Disk</div>
+            <div class="hkpi-value" id="dashDiskVal">${diskPct}%</div>
+            <div class="hkpi-sub">${rootDisk ? (rootDisk.mountpoint || rootDisk.mount || '/') : '--'}</div>
+            <canvas class="hkpi-spark" id="dashSparkDisk"></canvas>
           </div>
-          <div style="background:var(--bg2);border:1px solid var(--border);border-radius:14px;padding:20px;transition:border-color 0.2s">
-            <div style="font:500 10px var(--sans);text-transform:uppercase;letter-spacing:1.2px;color:var(--text3);margin-bottom:10px">Notes</div>
-            <div style="font:700 28px var(--mono);color:var(--amber)">${stats.notes || 0}</div>
-          </div>
-        </div>
-
-        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:24px">
-          <div style="background:var(--bg2);border:1px solid var(--border);border-radius:14px;padding:20px">
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
-              <span style="font:500 10px var(--sans);text-transform:uppercase;letter-spacing:1.2px;color:var(--text3)">CPU</span>
-              <span style="font:600 13px var(--mono);color:var(--cyan)">${lastSys ? cpuPct + '%' : '--'}</span>
-            </div>
-            <div style="height:6px;background:var(--bg4);border-radius:3px;overflow:hidden"><div style="height:100%;width:${cpuPct}%;background:var(--cyan);border-radius:3px;transition:width 0.4s ease"></div></div>
-          </div>
-          <div style="background:var(--bg2);border:1px solid var(--border);border-radius:14px;padding:20px">
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
-              <span style="font:500 10px var(--sans);text-transform:uppercase;letter-spacing:1.2px;color:var(--text3)">Memory</span>
-              <span style="font:600 13px var(--mono);color:var(--green)">${lastSys ? memPct + '%' : '--'}</span>
-            </div>
-            <div style="height:6px;background:var(--bg4);border-radius:3px;overflow:hidden"><div style="height:100%;width:${memPct}%;background:var(--green);border-radius:3px;transition:width 0.4s ease"></div></div>
-          </div>
-          <div style="background:var(--bg2);border:1px solid var(--border);border-radius:14px;padding:20px">
-            <div style="font:500 10px var(--sans);text-transform:uppercase;letter-spacing:1.2px;color:var(--text3);margin-bottom:12px">Uptime</div>
-            <div style="font:600 16px var(--mono);color:var(--text)">${uptime}</div>
+          <div class="hkpi-card">
+            <div class="hkpi-label">Network</div>
+            <div class="hkpi-value" id="dashNetVal">${fmtRate(netDown)}</div>
+            <div class="hkpi-sub" id="dashNetSub">&uarr; ${fmtRate(netUp)}</div>
+            <canvas class="hkpi-spark" id="dashSparkNet"></canvas>
           </div>
         </div>
 
-        <div style="display:grid;grid-template-columns:1.3fr 1fr;gap:16px;margin-bottom:24px">
-          <div style="background:var(--bg2);border:1px solid var(--border);border-radius:14px;overflow:hidden">
-            <div style="padding:14px 18px;font:600 10px var(--sans);text-transform:uppercase;letter-spacing:1.2px;color:var(--text3);border-bottom:1px solid var(--border)">Activity Feed</div>
+        <!-- Row 2: Charts + Server Info -->
+        <div class="dash-dual">
+          <div class="dchart-wrap">
+            <div class="dchart-title">CPU &amp; Memory History</div>
+            <canvas class="dchart-canvas" id="dashChartCpu" style="margin-bottom:10px"></canvas>
+            <canvas class="dchart-canvas" id="dashChartMem"></canvas>
+          </div>
+          <div class="sinfo-card">
+            <div style="font:600 10px var(--sans);text-transform:uppercase;letter-spacing:1.2px;color:var(--text3);margin-bottom:14px">Server Info</div>
+            <div class="sinfo-row"><span class="sinfo-lbl">Hostname</span><span class="sinfo-val">${esc(sysInfo.hostname || '--')}</span></div>
+            <div class="sinfo-row"><span class="sinfo-lbl">OS</span><span class="sinfo-val">${esc((sysInfo.platform || '') + ' ' + (sysInfo.arch || ''))}</span></div>
+            <div class="sinfo-row"><span class="sinfo-lbl">Uptime</span><span class="sinfo-val sinfo-uptime" id="dashUptime">${uptime}</span></div>
+            <div class="sinfo-row"><span class="sinfo-lbl">Load Avg</span><span class="sinfo-val" id="dashLoadAvg">${sysInfo.loadavg ? sysInfo.loadavg.map(v => v.toFixed(2)).join(', ') : '--'}</span></div>
+            <div class="sinfo-row"><span class="sinfo-lbl">CPU</span><span class="sinfo-val">${esc(sysInfo.cpuModel || '--')}</span></div>
+            <div class="sinfo-row"><span class="sinfo-lbl">Node</span><span class="sinfo-val">${esc(sysInfo.nodeVersion || '--')}</span></div>
+          </div>
+        </div>
+
+        <!-- Row 3: Docker Containers -->
+        <div class="dstrip" id="dashDocker">
+          ${_renderDashDocker(containerList, shownContainers, runningCount)}
+        </div>
+
+        <!-- Row 4: Storage + Ports -->
+        <div class="dash-half">
+          <div class="stor-bar-wrap">
+            <div class="stor-title">Storage</div>
+            ${(disks || []).length ? (disks || []).map(d => {
+              const pct = parseInt(String(d.usePercent || d.use || 0)) || 0;
+              const cls = pct >= 85 ? 'stor-danger' : pct >= 60 ? 'stor-warn' : 'stor-ok';
+              return `<div class="stor-row"><span class="stor-label">${esc(String(d.mountpoint || d.mount || d.fs || '/'))}</span><div class="stor-track"><div class="stor-fill ${cls}" style="width:${pct}%"></div></div><span class="stor-pct">${pct}%</span></div>`;
+            }).join('') : '<div style="color:var(--text3);font:13px var(--sans)">No disk data</div>'}
+          </div>
+          <div class="port-list">
+            <div class="port-title">Active Ports</div>
+            ${(ports || []).length ? (ports || []).slice(0, 10).map(p => `<div class="port-row"><span class="port-num">:${p.port || p.localPort || '--'}</span><span class="port-proc">${esc(String(p.command || p.process || p.name || p.pid || 'unknown'))}</span></div>`).join('') : '<div style="color:var(--text3);font:13px var(--sans)">No port data</div>'}
+          </div>
+        </div>
+
+        <!-- Row 5: Activity + Quick Actions -->
+        <div class="dash-bottom">
+          <div class="dash-activity">
+            <div style="padding:14px 18px;font:600 10px var(--sans);text-transform:uppercase;letter-spacing:1.2px;color:var(--text3);border-bottom:1px solid var(--border)">Recent Activity</div>
             <div style="padding:6px 10px;max-height:240px;overflow-y:auto">
               ${activityItems.length ? activityItems.map(a => `<div style="display:flex;gap:10px;align-items:center;padding:9px 8px;border-bottom:1px solid var(--border);font:13px var(--sans);color:var(--text2);transition:color 0.1s;cursor:pointer" onmouseover="this.style.color='var(--text)'" onmouseout="this.style.color='var(--text2)'"><span style="color:var(--text3);width:18px;text-align:center;flex-shrink:0;font:12px var(--mono)">${activityIcons[a.type] || '·'}</span><span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(a.title?.slice(0,80) || '')}</span><span style="color:var(--text3);font:10px var(--mono);white-space:nowrap;flex-shrink:0">${_timeAgo(a.timestamp)}</span></div>`).join('') : '<div style="color:var(--text3);font:13px var(--sans);padding:16px 8px">No recent activity</div>'}
             </div>
           </div>
-          <div style="background:var(--bg2);border:1px solid var(--border);border-radius:14px;overflow:hidden">
-            <div style="padding:14px 18px;font:600 10px var(--sans);text-transform:uppercase;letter-spacing:1.2px;color:var(--text3);border-bottom:1px solid var(--border)">Quick Launch</div>
-            <div style="padding:14px 18px">
-              ${topPages.length ? `<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">${topPages.map(([pg,cnt]) => `<button class="btn" style="font:12px var(--sans);justify-content:flex-start;width:100%" onclick="go('${esc(pg)}')">${esc(pg)} <span style="color:var(--text3);margin-left:auto;font:11px var(--mono)">${cnt}</span></button>`).join('')}</div>` : '<div style="color:var(--text3);font:13px var(--sans)">Visit pages to build your quick launch</div>'}
+          <div class="dash-qa">
+            <div class="dash-qa-title">Quick Actions</div>
+            <div class="dash-qa-grid">
+              <button class="dash-qa-btn" onclick="go('terminal');setTimeout(addTerminal,100)">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+                Terminal
+              </button>
+              <button class="dash-qa-btn" onclick="go('files')">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>
+                Files
+              </button>
+              <button class="dash-qa-btn" onclick="go('docker')">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v2"/></svg>
+                Docker
+              </button>
+              <button class="dash-qa-btn" onclick="go('system')">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+                Monitor
+              </button>
             </div>
           </div>
         </div>
 
-        <div style="margin-top:4px">
-          <div style="font:600 10px var(--sans);text-transform:uppercase;letter-spacing:1.2px;color:var(--text3);margin-bottom:12px">Quick Actions</div>
-          <div style="display:flex;flex-wrap:wrap;gap:10px">
-            <button class="btn" onclick="go('terminal');setTimeout(addTerminal,100)">New Terminal</button>
-            <button class="btn" onclick="go('files');setTimeout(uploadFile,200)">Upload File</button>
-            <button class="btn" onclick="go('notebooks');setTimeout(createNotebook,200)">New Notebook</button>
-            <button class="btn" onclick="go('agents');setTimeout(createAgentModal,200)">New Agent</button>
-            <button class="btn" onclick="go('workflows');setTimeout(createWorkflowModal,200)">New Workflow</button>
-            <button class="btn" onclick="go('settings')">Settings</button>
-          </div>
-        </div>
       </div>
     </div>
   `;
 
-  // Track page visit for quick launch
+  // Draw sparklines & charts
+  _drawAllDashCharts();
+
+  // Docker auto-refresh every 30s
+  if (_dashDockerTimer) clearInterval(_dashDockerTimer);
+  _dashDockerTimer = setInterval(_refreshDashDocker, 30000);
+
   _trackPageVisit('dashboard');
+}
+
+// Render docker container rows
+function _renderDashDocker(all, shown, runningCount) {
+  if (!all || all.length === 0) {
+    return `<div class="dstrip-head"><span class="dstrip-head-title">Docker Containers</span></div><div class="dstrip-empty">Docker not available</div>`;
+  }
+  let html = `<div class="dstrip-head"><span class="dstrip-head-title">Docker Containers</span><span class="dstrip-badge">${runningCount} running / ${all.length} total</span></div>`;
+  for (const c of shown) {
+    const state = (c.state || c.State || 'unknown').toLowerCase();
+    const name = String(c.name || (c.Names ? (Array.isArray(c.Names) ? c.Names[0] : c.Names) : '') || c.id?.slice(0,12) || '--').replace(/^\//, '');
+    const status = String(c.status || c.Status || state);
+    const portsArr = c.ports || c.Ports || [];
+    const portsStr = portsArr.map(p => p.hostPort ? `${p.hostPort}:${p.containerPort}` : (p.PublicPort ? `${p.PublicPort}:${p.PrivatePort}` : `${p.containerPort || p.PrivatePort || ''}`)).slice(0, 3).join(', ') || '';
+    const id = c.id || c.Id || '';
+    const dotCls = state === 'running' ? 'running' : state === 'paused' ? 'paused' : state === 'created' ? 'created' : 'exited';
+    const actions = state === 'running'
+      ? `<button onclick="_dashDockerAction('${id}','stop')" title="Stop">&#9632;</button><button onclick="_dashDockerAction('${id}','restart')" title="Restart">&#8635;</button>`
+      : `<button onclick="_dashDockerAction('${id}','start')" title="Start">&#9654;</button><button onclick="_dashDockerAction('${id}','restart')" title="Restart">&#8635;</button>`;
+    html += `<div class="dstrip-row" onclick="this.classList.toggle('expanded')"><span class="dstrip-dot ${dotCls}"></span><span class="dstrip-name">${esc(name)}</span><span class="dstrip-meta">${esc(status)}</span><span class="dstrip-ports">${esc(portsStr)}</span><div class="dstrip-actions">${actions}<button onclick="_dashDockerLogs('${id}','${esc(name)}')" title="Logs">&#128196;</button></div></div>`;
+  }
+  if (all.length > 6) {
+    html += `<div class="dstrip-footer"><a onclick="go('docker')">View All ${all.length} Containers &rarr;</a></div>`;
+  }
+  return html;
+}
+
+// Docker quick actions
+async function _dashDockerAction(id, action) {
+  try {
+    await api(`/api/docker/containers/${id}/${action}`, { method: 'POST' });
+    setTimeout(_refreshDashDocker, 500);
+  } catch (e) {
+    console.error('Docker action failed:', e);
+  }
+}
+
+async function _dashDockerLogs(id, name) {
+  try {
+    const logs = await api(`/api/docker/containers/${id}/logs?tail=100`);
+    const logText = typeof logs === 'string' ? logs : (logs.logs || logs.stdout || JSON.stringify(logs, null, 2));
+    const modal = document.createElement('div');
+    modal.className = 'modal-overlay';
+    modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+    modal.innerHTML = `<div class="modal" style="width:720px;max-height:80vh"><div class="modal-header"><span class="modal-title">Logs: ${esc(name)}</span><button class="modal-close" onclick="this.closest('.modal-overlay').remove()">&times;</button></div><pre style="padding:16px;font:12px var(--mono);color:var(--text2);overflow:auto;max-height:60vh;white-space:pre-wrap">${esc(logText)}</pre></div>`;
+    document.body.appendChild(modal);
+  } catch (e) {
+    console.error('Docker logs failed:', e);
+  }
+}
+
+async function _refreshDashDocker() {
+  if (page !== 'dashboard') { clearInterval(_dashDockerTimer); _dashDockerTimer = null; return; }
+  try {
+    const containers = await api('/api/docker/containers?all=true');
+    const list = containers || [];
+    const running = list.filter(c => (c.State || c.state || '').toLowerCase() === 'running').length;
+    const el = document.getElementById('dashDocker');
+    if (el) el.innerHTML = _renderDashDocker(list, list.slice(0, 6), running);
+  } catch {}
+}
+
+// ── Sparkline + Chart drawing ──
+function _drawSparkline(canvasId, data, color) {
+  const canvas = document.getElementById(canvasId);
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const dpr = window.devicePixelRatio || 1;
+  const w = canvas.clientWidth;
+  const h = canvas.clientHeight;
+  canvas.width = w * dpr;
+  canvas.height = h * dpr;
+  ctx.scale(dpr, dpr);
+  ctx.clearRect(0, 0, w, h);
+  if (!data || data.length < 2) return;
+
+  const max = Math.max(...data, 1);
+  const step = w / (data.length - 1);
+
+  // Gradient fill
+  const grad = ctx.createLinearGradient(0, 0, 0, h);
+  grad.addColorStop(0, color.replace(')', ',0.3)').replace('rgb', 'rgba'));
+  grad.addColorStop(1, color.replace(')', ',0.02)').replace('rgb', 'rgba'));
+
+  ctx.beginPath();
+  ctx.moveTo(0, h);
+  for (let i = 0; i < data.length; i++) {
+    const x = i * step;
+    const y = h - (data[i] / max) * (h - 4);
+    if (i === 0) ctx.lineTo(x, y);
+    else ctx.lineTo(x, y);
+  }
+  ctx.lineTo(w, h);
+  ctx.closePath();
+  ctx.fillStyle = grad;
+  ctx.fill();
+
+  // Line
+  ctx.beginPath();
+  for (let i = 0; i < data.length; i++) {
+    const x = i * step;
+    const y = h - (data[i] / max) * (h - 4);
+    if (i === 0) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
+  }
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+}
+
+function _drawAreaChart(canvasId, data, color, label) {
+  const canvas = document.getElementById(canvasId);
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const dpr = window.devicePixelRatio || 1;
+  const w = canvas.clientWidth;
+  const h = canvas.clientHeight;
+  canvas.width = w * dpr;
+  canvas.height = h * dpr;
+  ctx.scale(dpr, dpr);
+  ctx.clearRect(0, 0, w, h);
+
+  // Y-axis guides
+  ctx.strokeStyle = 'rgba(255,255,255,0.06)';
+  ctx.lineWidth = 1;
+  for (let pct of [0, 50, 100]) {
+    const y = h - (pct / 100) * (h - 20) - 2;
+    ctx.beginPath(); ctx.moveTo(30, y); ctx.lineTo(w, y); ctx.stroke();
+    ctx.fillStyle = 'rgba(255,255,255,0.25)';
+    ctx.font = '9px monospace';
+    ctx.textAlign = 'right';
+    ctx.fillText(pct + '%', 26, y + 3);
+  }
+
+  if (!data || data.length < 2) {
+    ctx.fillStyle = 'rgba(255,255,255,0.2)';
+    ctx.font = '12px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('Waiting for data...', w / 2, h / 2);
+    return;
+  }
+
+  const ox = 32, ow = w - ox - 4;
+  const step = ow / (data.length - 1);
+
+  // Gradient fill
+  const grad = ctx.createLinearGradient(0, 0, 0, h);
+  grad.addColorStop(0, color.replace(')', ',0.25)').replace('rgb', 'rgba'));
+  grad.addColorStop(1, color.replace(')', ',0.01)').replace('rgb', 'rgba'));
+
+  ctx.beginPath();
+  ctx.moveTo(ox, h - 2);
+  for (let i = 0; i < data.length; i++) {
+    const x = ox + i * step;
+    const y = h - (Math.min(data[i], 100) / 100) * (h - 22) - 2;
+    ctx.lineTo(x, y);
+  }
+  ctx.lineTo(ox + (data.length - 1) * step, h - 2);
+  ctx.closePath();
+  ctx.fillStyle = grad;
+  ctx.fill();
+
+  // Line
+  ctx.beginPath();
+  for (let i = 0; i < data.length; i++) {
+    const x = ox + i * step;
+    const y = h - (Math.min(data[i], 100) / 100) * (h - 22) - 2;
+    if (i === 0) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
+  }
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  // Current value badge
+  const lastVal = Math.round(data[data.length - 1]);
+  ctx.fillStyle = color;
+  ctx.font = 'bold 14px monospace';
+  ctx.textAlign = 'right';
+  ctx.fillText(lastVal + '%', w - 8, 16);
+  ctx.fillStyle = 'rgba(255,255,255,0.4)';
+  ctx.font = '10px sans-serif';
+  ctx.fillText(label, w - 8, 28);
+}
+
+function _drawAllDashCharts() {
+  const cpuData = _sysHistory.map(s => s.cpuPercent || 0);
+  const memData = _sysHistory.map(s => s.memPercent || 0);
+  const netData = _sysHistory.map(s => s.netBytesRecv || 0);
+  // Compute net deltas for sparkline
+  const netDeltas = [];
+  for (let i = 1; i < netData.length; i++) {
+    netDeltas.push(Math.max(0, (netData[i] - netData[i - 1]) / 2));
+  }
+
+  _drawSparkline('dashSparkCpu', cpuData, 'rgb(103,209,232)');
+  _drawSparkline('dashSparkMem', memData, 'rgb(34,197,94)');
+  // Disk sparkline: just show constant level (no history available)
+  const diskEl = document.getElementById('dashDiskVal');
+  const diskVal = diskEl ? parseInt(diskEl.textContent) || 0 : 0;
+  _drawSparkline('dashSparkDisk', new Array(Math.min(cpuData.length || 10, 60)).fill(diskVal), 'rgb(245,158,11)');
+  _drawSparkline('dashSparkNet', netDeltas.length > 1 ? netDeltas : [0, 0], 'rgb(96,165,250)');
+
+  _drawAreaChart('dashChartCpu', cpuData, 'rgb(103,209,232)', 'CPU');
+  _drawAreaChart('dashChartMem', memData, 'rgb(34,197,94)', 'Memory');
+}
+
+// Live update from WebSocket
+function _updateDashboardLive(data) {
+  // Update KPI values
+  const cpuEl = document.getElementById('dashCpuVal');
+  const memEl = document.getElementById('dashMemVal');
+  if (cpuEl) cpuEl.textContent = Math.round(data.cpuPercent || 0) + '%';
+  if (memEl) memEl.textContent = Math.round(data.memPercent || 0) + '%';
+
+  // Update net rate
+  if (_sysHistory.length >= 2) {
+    const cur = _sysHistory[_sysHistory.length - 1];
+    const prev = _sysHistory[_sysHistory.length - 2];
+    const down = Math.max(0, ((cur.netBytesRecv || 0) - (prev.netBytesRecv || 0)) / 2);
+    const up = Math.max(0, ((cur.netBytesSent || 0) - (prev.netBytesSent || 0)) / 2);
+    const fmtRate = (b) => b > 1048576 ? (b / 1048576).toFixed(1) + ' MB/s' : b > 1024 ? (b / 1024).toFixed(0) + ' KB/s' : Math.round(b) + ' B/s';
+    const netEl = document.getElementById('dashNetVal');
+    const netSub = document.getElementById('dashNetSub');
+    if (netEl) netEl.textContent = fmtRate(down);
+    if (netSub) netSub.innerHTML = '&uarr; ' + fmtRate(up);
+  }
+
+  // Update uptime
+  if (data.uptime) {
+    const utEl = document.getElementById('dashUptime');
+    if (utEl) utEl.textContent = _fmtUptime(data.uptime);
+  }
+
+  // Redraw charts
+  _drawAllDashCharts();
 }
 
 function _fmtUptime(secs) {
@@ -12980,4 +13277,716 @@ function _chatFormatText(text) {
   // Line breaks
   html = html.replace(/\n/g, '<br>');
   return html;
+}
+
+// ═══════════════════════════════════════════════════
+// CONTEXT BRIDGE — AI-ready server context panel
+// ═══════════════════════════════════════════════════
+
+let _cbFormat = 'markdown';
+let _cbSections = ['system', 'docker', 'processes', 'network', 'health', 'cron', 'metrics', 'runtimes', 'errors'];
+let _cbLastMarkdown = '';
+let _cbAutoTimer = null;
+let _cbMcpExpanded = false;
+
+async function loadContextBridge() {
+  // Clear any previous auto-refresh
+  if (_cbAutoTimer) { clearInterval(_cbAutoTimer); _cbAutoTimer = null; }
+
+  const main = document.getElementById('main');
+  main.innerHTML = `
+    <div class="page">
+      <div class="page-header">
+        <span class="page-title">AI Context Bridge</span>
+        <div style="display:flex;gap:8px;align-items:center">
+          <button class="btn btn-primary" onclick="_cbCopy()" id="cbCopyBtn" style="font-weight:600;padding:8px 20px">Copy for AI</button>
+          <button class="btn" onclick="_cbRefresh()">Refresh</button>
+        </div>
+      </div>
+      <div class="page-pad" style="display:grid;grid-template-columns:280px 1fr;gap:16px;align-items:start">
+        <!-- Left sidebar -->
+        <div style="display:flex;flex-direction:column;gap:12px">
+          <!-- Format -->
+          <div style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:14px">
+            <div style="font:600 12px var(--sans);color:var(--text3);margin-bottom:8px;text-transform:uppercase;letter-spacing:0.5px">Format</div>
+            <label style="display:flex;align-items:center;gap:6px;font:13px var(--sans);cursor:pointer;margin-bottom:6px">
+              <input type="radio" name="cbFmt" value="markdown" ${_cbFormat==='markdown'?'checked':''} onchange="_cbSetFormat('markdown')"> Full Markdown
+            </label>
+            <label style="display:flex;align-items:center;gap:6px;font:13px var(--sans);cursor:pointer;margin-bottom:6px">
+              <input type="radio" name="cbFmt" value="compact" ${_cbFormat==='compact'?'checked':''} onchange="_cbSetFormat('compact')"> Compact (~500 tokens)
+            </label>
+            <label style="display:flex;align-items:center;gap:6px;font:13px var(--sans);cursor:pointer">
+              <input type="radio" name="cbFmt" value="json" ${_cbFormat==='json'?'checked':''} onchange="_cbSetFormat('json')"> Raw JSON
+            </label>
+          </div>
+          <!-- Sections -->
+          <div style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:14px">
+            <div style="font:600 12px var(--sans);color:var(--text3);margin-bottom:8px;text-transform:uppercase;letter-spacing:0.5px">Sections</div>
+            ${['system','docker','processes','network','health','cron','metrics','runtimes','errors'].map(s => `
+              <label style="display:flex;align-items:center;gap:6px;font:13px var(--sans);cursor:pointer;margin-bottom:4px">
+                <input type="checkbox" ${_cbSections.includes(s)?'checked':''} onchange="_cbToggleSection('${s}',this.checked)"> ${s.charAt(0).toUpperCase()+s.slice(1)}
+              </label>`).join('')}
+          </div>
+          <!-- Token estimate -->
+          <div style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:14px;text-align:center">
+            <div style="font:600 12px var(--sans);color:var(--text3);margin-bottom:4px">ESTIMATED TOKENS</div>
+            <div id="cbTokens" style="font:600 24px var(--mono);color:var(--cyan)">—</div>
+          </div>
+          <!-- Auto-refresh -->
+          <div style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:14px">
+            <label style="display:flex;align-items:center;gap:6px;font:13px var(--sans);cursor:pointer">
+              <input type="checkbox" id="cbAutoCheck" onchange="_cbToggleAutoRefresh(this.checked)"> Auto-refresh (30s)
+            </label>
+          </div>
+          <!-- MCP Setup -->
+          <div style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:14px">
+            <div style="display:flex;align-items:center;justify-content:space-between;cursor:pointer" onclick="_cbToggleMcp()">
+              <span style="font:600 12px var(--sans);color:var(--text3);text-transform:uppercase;letter-spacing:0.5px">MCP Setup</span>
+              <span id="cbMcpArrow" style="font-size:10px;color:var(--text3);transition:transform 0.2s">${_cbMcpExpanded?'&#9660;':'&#9654;'}</span>
+            </div>
+            <div id="cbMcpBody" style="display:${_cbMcpExpanded?'block':'none'};margin-top:10px">
+              <p style="font:12px var(--sans);color:var(--text2);margin:0 0 8px">Add this to your Claude Desktop <code>claude_desktop_config.json</code>:</p>
+              <pre style="background:var(--bg1);border:1px solid var(--border);border-radius:6px;padding:10px;font:11px var(--mono);overflow-x:auto;white-space:pre-wrap;color:var(--text1)" id="cbMcpConfig"></pre>
+              <button class="btn" style="margin-top:8px;width:100%;font-size:12px" onclick="_cbCopyMcpConfig()">Copy MCP Config</button>
+            </div>
+          </div>
+        </div>
+        <!-- Right content -->
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <div style="display:flex;align-items:center;justify-content:space-between">
+            <div id="cbTimestamp" style="font:11px var(--mono);color:var(--text3)"></div>
+          </div>
+          <pre id="cbPreview" style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:16px;font:12px/1.5 var(--mono);color:var(--text1);overflow:auto;max-height:calc(100vh - 200px);white-space:pre-wrap;word-break:break-word;margin:0">Loading...</pre>
+        </div>
+      </div>
+    </div>`;
+
+  // Set MCP config JSON
+  const host = location.hostname || 'localhost';
+  const mcpPort = 3334;
+  const mcpJson = {
+    mcpServers: {
+      hyperion: {
+        url: `http://${host}:${mcpPort}`,
+        transport: 'http'
+      }
+    }
+  };
+  const cfgEl = document.getElementById('cbMcpConfig');
+  if (cfgEl) cfgEl.textContent = JSON.stringify(mcpJson, null, 2);
+
+  await _cbRefresh();
+}
+
+async function _cbRefresh() {
+  // Guard: stop auto-refresh if navigated away
+  if (page !== 'contextbridge') {
+    if (_cbAutoTimer) { clearInterval(_cbAutoTimer); _cbAutoTimer = null; }
+    return;
+  }
+
+  const preview = document.getElementById('cbPreview');
+  const tokenEl = document.getElementById('cbTokens');
+  const tsEl = document.getElementById('cbTimestamp');
+  if (!preview) return;
+
+  try {
+    const sid = _sessionId || localStorage.getItem('hyperion_sid') || '';
+
+    if (_cbFormat === 'json') {
+      // JSON format — use standard api() helper
+      let url = '/api/context';
+      if (_cbSections.length < 9) url += '?sections=' + _cbSections.join(',');
+      const data = await api(url);
+      const text = JSON.stringify(data, null, 2);
+      _cbLastMarkdown = text;
+      preview.textContent = text;
+      if (tokenEl) tokenEl.textContent = Math.ceil(text.length / 4).toLocaleString();
+    } else {
+      // Markdown/compact — raw fetch since response is text/markdown
+      const resp = await fetch('/api/context/custom', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Session-Id': sid },
+        body: JSON.stringify({ sections: _cbSections, format: _cbFormat }),
+      });
+      if (!resp.ok) throw new Error('Failed to fetch context');
+      const text = await resp.text();
+      _cbLastMarkdown = text;
+      preview.textContent = text;
+      const tokenEstimate = resp.headers.get('X-Token-Estimate') || Math.ceil(text.length / 4);
+      if (tokenEl) tokenEl.textContent = Number(tokenEstimate).toLocaleString();
+    }
+
+    if (tsEl) tsEl.textContent = 'Generated: ' + new Date().toLocaleTimeString();
+  } catch (err) {
+    preview.textContent = 'Error: ' + err.message;
+  }
+}
+
+function _cbCopy() {
+  if (!_cbLastMarkdown) { showToast('Nothing to copy', 'error'); return; }
+  _copyToClip(_cbLastMarkdown);
+}
+
+function _cbSetFormat(fmt) {
+  _cbFormat = fmt;
+  _cbRefresh();
+}
+
+function _cbToggleSection(section, enabled) {
+  if (enabled && !_cbSections.includes(section)) {
+    _cbSections.push(section);
+  } else if (!enabled) {
+    _cbSections = _cbSections.filter(s => s !== section);
+  }
+  _cbRefresh();
+}
+
+function _cbToggleAutoRefresh(enabled) {
+  if (_cbAutoTimer) { clearInterval(_cbAutoTimer); _cbAutoTimer = null; }
+  if (enabled) {
+    _cbAutoTimer = setInterval(() => _cbRefresh(), 30000);
+  }
+}
+
+function _cbToggleMcp() {
+  _cbMcpExpanded = !_cbMcpExpanded;
+  const body = document.getElementById('cbMcpBody');
+  const arrow = document.getElementById('cbMcpArrow');
+  if (body) body.style.display = _cbMcpExpanded ? 'block' : 'none';
+  if (arrow) arrow.innerHTML = _cbMcpExpanded ? '&#9660;' : '&#9654;';
+}
+
+function _cbCopyMcpConfig() {
+  const el = document.getElementById('cbMcpConfig');
+  if (el) _copyToClip(el.textContent);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// ███ TASK ENGINE ███
+// ═══════════════════════════════════════════════════════════════
+let _teSessionId = null;
+let _tePlan = [];
+let _teCurrentStep = -1;
+let _teAbortController = null;
+let _teRunning = false;
+
+async function loadTaskEngine() {
+  const main = document.getElementById('main');
+  main.innerHTML = `
+    <div class="te-wrap">
+      <div class="te-sidebar" id="teSidebar">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+          <span style="font:600 13px var(--sans);color:var(--text1)">History</span>
+          <button class="btn btn-xs" onclick="_teNewTask()">+ New</button>
+        </div>
+        <div id="teSessionList"></div>
+      </div>
+      <div class="te-main">
+        <div class="te-goal-box" id="teGoalBox">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+            <span style="font:600 15px var(--sans);color:var(--text1)">Task Engine</span>
+          </div>
+          <textarea class="te-goal-input" id="teGoalInput" placeholder="Describe your goal... e.g. 'List all JavaScript files in ~/projects and create a summary report'" onkeydown="if(event.key==='Enter'&&event.metaKey)_teSubmit('execute')"></textarea>
+          <div class="te-actions">
+            <button class="btn btn-sm" onclick="_teSubmit('preview')" id="tePreviewBtn">Preview Plan</button>
+            <button class="btn btn-sm btn-primary" onclick="_teSubmit('execute')" id="teExecuteBtn">Execute</button>
+          </div>
+        </div>
+        <div class="te-steps" id="teSteps" style="display:none"></div>
+        <div id="teApprovalArea"></div>
+        <div class="te-log" id="teLog" style="display:none"></div>
+      </div>
+    </div>`;
+  _teSessionId = null;
+  _tePlan = [];
+  _teCurrentStep = -1;
+  _teRunning = false;
+  _teLoadSessions();
+}
+
+function _teNewTask() {
+  _teCleanup();
+  _teSessionId = null;
+  _tePlan = [];
+  _teCurrentStep = -1;
+  const input = document.getElementById('teGoalInput');
+  if (input) input.value = '';
+  const steps = document.getElementById('teSteps');
+  if (steps) { steps.style.display = 'none'; steps.innerHTML = ''; }
+  const log = document.getElementById('teLog');
+  if (log) { log.style.display = 'none'; log.innerHTML = ''; }
+  const approval = document.getElementById('teApprovalArea');
+  if (approval) approval.innerHTML = '';
+  _teSetButtonsEnabled(true);
+  // Deselect session in sidebar
+  document.querySelectorAll('.te-session-item.active').forEach(el => el.classList.remove('active'));
+}
+
+function _teCleanup() {
+  if (_teAbortController) {
+    _teAbortController.abort();
+    _teAbortController = null;
+  }
+  _teRunning = false;
+}
+
+function _teSetButtonsEnabled(enabled) {
+  const p = document.getElementById('tePreviewBtn');
+  const e = document.getElementById('teExecuteBtn');
+  if (p) p.disabled = !enabled;
+  if (e) { e.disabled = !enabled; e.textContent = enabled ? 'Execute' : 'Running...'; }
+}
+
+async function _teSubmit(mode) {
+  const input = document.getElementById('teGoalInput');
+  const goal = input?.value?.trim();
+  if (!goal) return;
+
+  if (mode === 'preview') {
+    _teSetButtonsEnabled(false);
+    document.getElementById('tePreviewBtn').textContent = 'Planning...';
+    try {
+      const res = await fetch('/api/tasks/preview', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Session-Id': _sessionId },
+        body: JSON.stringify({ goal }),
+      });
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+      _tePlan = data.plan;
+      _teRenderPlan(data.plan);
+    } catch (err) {
+      _teAppendLog({ type: 'error', data: err.message });
+    }
+    _teSetButtonsEnabled(true);
+    document.getElementById('tePreviewBtn').textContent = 'Preview Plan';
+  } else {
+    _teStreamExecute(goal);
+  }
+}
+
+async function _teStreamExecute(goal) {
+  _teCleanup();
+  _teSetButtonsEnabled(false);
+  _teRunning = true;
+
+  const log = document.getElementById('teLog');
+  if (log) { log.style.display = 'block'; log.innerHTML = ''; }
+
+  _teAbortController = new AbortController();
+
+  try {
+    const res = await fetch('/api/tasks/run', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Session-Id': _sessionId },
+      body: JSON.stringify({ goal, sessionId: _teSessionId }),
+      signal: _teAbortController.signal,
+    });
+
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+
+      const lines = buffer.split('\n');
+      buffer = lines.pop() || '';
+
+      let eventType = null;
+      for (const line of lines) {
+        if (line.startsWith('event: ')) {
+          eventType = line.slice(7).trim();
+        } else if (line.startsWith('data: ') && eventType) {
+          try {
+            const data = JSON.parse(line.slice(6));
+            _teHandleEvent(eventType, data);
+          } catch {}
+          eventType = null;
+        }
+      }
+    }
+  } catch (err) {
+    if (err.name !== 'AbortError') {
+      _teAppendLog({ type: 'error', data: err.message });
+    }
+  }
+
+  _teRunning = false;
+  _teSetButtonsEnabled(true);
+  _teLoadSessions();
+}
+
+function _teHandleEvent(type, data) {
+  switch (type) {
+    case 'session':
+      _teSessionId = data.sessionId;
+      break;
+    case 'phase':
+      _teAppendLog({ type: 'phase', data: data.phase });
+      break;
+    case 'plan':
+      _tePlan = data.steps;
+      _teRenderPlan(data.steps);
+      break;
+    case 'step_start':
+      _teCurrentStep = data.stepIndex;
+      _teUpdateStepStatus(data.stepIndex, 'running');
+      _teAppendLog({ type: 'step_start', data });
+      break;
+    case 'provider':
+      // silently noted
+      break;
+    case 'text':
+      _teAppendLog({ type: 'text', data: data });
+      break;
+    case 'tool_start':
+      _teAppendLog({ type: 'tool_start', data });
+      break;
+    case 'tool_result':
+      _teAppendLog({ type: 'tool_result', data });
+      break;
+    case 'approval_needed':
+      _teShowApproval(data);
+      break;
+    case 'step_complete':
+      _teUpdateStepStatus(data.stepIndex, data.success ? 'done' : 'failed');
+      _teAppendLog({ type: 'step_complete', data });
+      break;
+    case 'task_complete':
+      _teAppendLog({ type: 'task_complete', data });
+      break;
+    case 'reflection':
+      _teAppendLog({ type: 'reflection', data });
+      break;
+    case 'replan':
+      _teHandleReplan(data);
+      break;
+    case 'error':
+      _teAppendLog({ type: 'error', data: typeof data === 'string' ? data : data.error || JSON.stringify(data) });
+      break;
+    case 'close':
+      break;
+  }
+}
+
+function _teHandleReplan(data) {
+  // Update plan with new steps
+  if (data.newSteps && _tePlan) {
+    const failedIdx = data.failedStep;
+    _tePlan.splice(failedIdx + 1, _tePlan.length - failedIdx - 1, ...data.newSteps);
+    _teRenderPlan(_tePlan);
+    // Mark failed step
+    _teUpdateStepStatus(failedIdx, 'failed');
+  }
+  _teAppendLog({ type: 'replan', data });
+}
+
+function _teRenderPlan(steps) {
+  const container = document.getElementById('teSteps');
+  if (!container) return;
+  container.style.display = 'flex';
+  container.innerHTML = steps.map((s, i) => `
+    <div class="te-step-card" id="teStep${i}">
+      <div class="te-step-badge pending" id="teStepBadge${i}">${i + 1}</div>
+      <div class="te-step-info">
+        <div class="te-step-title">${esc(s.title)}</div>
+        <div class="te-step-desc">${esc(s.description)}</div>
+        ${s.tools?.length ? `<div class="te-step-tools">${s.tools.map(t => `<span class="te-step-tool-tag">${esc(t)}</span>`).join('')}</div>` : ''}
+      </div>
+      ${s.critical ? '<span style="font:10px var(--mono);color:var(--red);opacity:0.7">CRITICAL</span>' : ''}
+    </div>
+  `).join('');
+}
+
+function _teUpdateStepStatus(index, status) {
+  const card = document.getElementById(`teStep${index}`);
+  const badge = document.getElementById(`teStepBadge${index}`);
+  if (!card || !badge) return;
+
+  card.classList.remove('active', 'done', 'failed');
+  badge.classList.remove('pending', 'running', 'done', 'failed');
+
+  if (status === 'running') {
+    card.classList.add('active');
+    badge.classList.add('running');
+    badge.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>';
+  } else if (status === 'done') {
+    card.classList.add('done');
+    badge.classList.add('done');
+    badge.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>';
+  } else if (status === 'failed') {
+    card.classList.add('failed');
+    badge.classList.add('failed');
+    badge.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
+  }
+
+  // Scroll step into view
+  card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function _teAppendLog(event) {
+  const log = document.getElementById('teLog');
+  if (!log) return;
+  log.style.display = 'block';
+
+  const div = document.createElement('div');
+  div.className = 'te-log-entry';
+
+  switch (event.type) {
+    case 'phase':
+      div.innerHTML = `<div class="te-log-step-label">${esc(event.data)}</div>`;
+      break;
+    case 'step_start':
+      div.innerHTML = `<div class="te-log-step-label">Step ${event.data.stepIndex + 1}: ${esc(event.data.step?.title || '')}</div>`;
+      break;
+    case 'text':
+      // Append to last text entry if exists
+      const lastText = log.querySelector('.te-log-text:last-child');
+      if (lastText && lastText.parentElement === log.lastElementChild) {
+        lastText.textContent += event.data;
+        log.scrollTop = log.scrollHeight;
+        return;
+      }
+      div.innerHTML = `<div class="te-log-text">${esc(event.data)}</div>`;
+      break;
+    case 'tool_start':
+      div.innerHTML = `<div><span class="te-log-tool">${esc(event.data.name)}</span> <span style="color:var(--text3)">${_teSummarizeArgs(event.data.arguments)}</span></div>`;
+      break;
+    case 'tool_result': {
+      const result = event.data.result;
+      let preview = '';
+      if (event.data.denied) {
+        preview = '<span style="color:var(--red)">Denied by user</span>';
+      } else if (result?.error) {
+        preview = `<span style="color:var(--red)">${esc(result.error)}</span>`;
+      } else {
+        const json = typeof result === 'string' ? result : JSON.stringify(result, null, 2);
+        preview = esc(json.length > 300 ? json.slice(0, 300) + '...' : json);
+      }
+      div.innerHTML = `<div class="te-log-result">${preview}</div>`;
+      break;
+    }
+    case 'step_complete':
+      div.innerHTML = `<div style="color:${event.data.success ? 'var(--green, #22c55e)' : 'var(--red)'}">Step ${event.data.stepIndex + 1} ${event.data.success ? 'completed' : 'failed'}${event.data.summary ? ': ' + esc(event.data.summary.slice(0, 200)) : ''}</div>`;
+      break;
+    case 'task_complete':
+      div.innerHTML = `<div style="font:600 14px var(--sans);color:${event.data.success ? 'var(--green, #22c55e)' : 'var(--red)'}; padding:8px 0">${esc(event.data.summary)}</div>
+        <div class="te-feedback-bar" id="teFeedback">
+          <span style="font:12px var(--sans);color:var(--text3)">How was this result?</span>
+          <button class="te-feedback-btn" onclick="_teFeedback(1)" title="Good">&#x1F44D;</button>
+          <button class="te-feedback-btn" onclick="_teFeedback(-1)" title="Bad">&#x1F44E;</button>
+        </div>`;
+      break;
+    case 'reflection': {
+      div.className = 'te-log-entry te-reflection';
+      const ref = event.data.reflection || {};
+      const evalData = event.data.evaluation || {};
+      const toolName = event.data.toolName || '';
+      let refText = `Reflection on ${esc(toolName)}: ${evalData.status || 'unknown'}`;
+      if (ref.alternative) refText += ` — Try: ${esc(ref.alternative)}`;
+      if (ref.shouldRetry) refText += ' (will retry)';
+      div.innerHTML = `<div class="te-reflection-text">${refText}</div>`;
+      break;
+    }
+    case 'replan': {
+      div.className = 'te-log-entry te-replan-banner';
+      const reason = event.data.reason || 'Adapting plan after failure';
+      const count = event.data.replanCount || 1;
+      const newCount = event.data.newSteps?.length || 0;
+      div.innerHTML = `<div class="te-replan-content">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 4v6h6"/><path d="M23 20v-6h-6"/><path d="M20.49 9A9 9 0 005.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 013.51 15"/></svg>
+        <span>Plan Updated (${count}/2): ${esc(reason)} — ${newCount} new step${newCount !== 1 ? 's' : ''} added</span>
+      </div>`;
+      break;
+    }
+    case 'error':
+      div.innerHTML = `<div style="color:var(--red)">${esc(event.data)}</div>`;
+      break;
+    default:
+      return;
+  }
+
+  log.appendChild(div);
+  log.scrollTop = log.scrollHeight;
+}
+
+function _teSummarizeArgs(args) {
+  if (!args) return '';
+  if (typeof args === 'string') return args.slice(0, 80);
+  const keys = Object.keys(args);
+  if (keys.length === 0) return '';
+  const first = args[keys[0]];
+  const summary = typeof first === 'string' ? first : JSON.stringify(first);
+  return summary.length > 80 ? summary.slice(0, 80) + '...' : summary;
+}
+
+function _teShowApproval(data) {
+  const area = document.getElementById('teApprovalArea');
+  if (!area) return;
+  area.innerHTML = `
+    <div class="te-approval-bar">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+      <div class="te-approval-info">
+        <div class="te-approval-tool">${esc(data.name)}</div>
+        <div class="te-approval-args">${_teSummarizeArgs(data.arguments)}</div>
+      </div>
+      <button class="btn btn-sm btn-primary" onclick="_teApprove(true)">Approve</button>
+      <button class="btn btn-sm" onclick="_teApprove(false)">Deny</button>
+    </div>`;
+}
+
+async function _teApprove(approved) {
+  const area = document.getElementById('teApprovalArea');
+  if (area) area.innerHTML = '';
+  try {
+    await fetch('/api/tasks/approve', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Session-Id': _sessionId },
+      body: JSON.stringify({ sessionId: _teSessionId, approved }),
+    });
+  } catch {}
+}
+
+async function _teFeedback(rating) {
+  const bar = document.getElementById('teFeedback');
+  if (bar) bar.innerHTML = `<span style="font:12px var(--sans);color:var(--text3)">${rating > 0 ? 'Thanks!' : 'Noted — will improve'}</span>`;
+  if (!_teSessionId) return;
+  try {
+    await fetch(`/api/tasks/sessions/${_teSessionId}/feedback`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Session-Id': _sessionId },
+      body: JSON.stringify({ rating }),
+    });
+  } catch {}
+}
+
+async function _teLoadSessions() {
+  try {
+    const res = await fetch('/api/tasks/sessions', { headers: { 'X-Session-Id': _sessionId } });
+    const sessions = await res.json();
+    const list = document.getElementById('teSessionList');
+    if (!list) return;
+    if (!sessions.length) {
+      list.innerHTML = '<div style="color:var(--text3);font:12px var(--mono);padding:8px">No previous tasks</div>';
+      return;
+    }
+    list.innerHTML = sessions.map(s => `
+      <div class="te-session-item${_teSessionId === s.id ? ' active' : ''}" onclick="_teLoadSession('${s.id}')">
+        <div style="display:flex;align-items:center">
+          <span class="te-session-status ${s.status}"></span>
+          <span class="te-session-goal">${esc(s.goal.slice(0, 50))}</span>
+        </div>
+        <div class="te-session-meta">${s.status} &middot; ${_teTimeAgo(s.updated_at)}</div>
+      </div>
+    `).join('');
+  } catch {}
+}
+
+async function _teLoadSession(id) {
+  try {
+    const res = await fetch(`/api/tasks/sessions/${id}`, { headers: { 'X-Session-Id': _sessionId } });
+    const session = await res.json();
+    if (session.error) return;
+
+    _teSessionId = id;
+    _tePlan = session.plan || [];
+
+    // Update goal input
+    const input = document.getElementById('teGoalInput');
+    if (input) input.value = session.goal;
+
+    // Render plan
+    if (_tePlan.length) {
+      _teRenderPlan(_tePlan);
+      // Mark completed steps
+      const results = session.results || [];
+      results.forEach((r, i) => {
+        _teUpdateStepStatus(i, r.success ? 'done' : 'failed');
+      });
+    }
+
+    // Show results in log
+    const log = document.getElementById('teLog');
+    if (log) {
+      log.style.display = 'block';
+      log.innerHTML = '';
+      const results = session.results || [];
+      if (results.length) {
+        results.forEach((r, i) => {
+          _teAppendLog({ type: 'step_complete', data: { stepIndex: i, success: r.success, summary: r.summary } });
+        });
+      } else {
+        log.innerHTML = '<div style="color:var(--text3);padding:8px">No execution results yet</div>';
+      }
+    }
+
+    // Highlight active session in sidebar
+    document.querySelectorAll('.te-session-item').forEach(el => el.classList.remove('active'));
+    const items = document.querySelectorAll('.te-session-item');
+    items.forEach(el => { if (el.onclick?.toString().includes(id)) el.classList.add('active'); });
+
+    _teLoadSessions();
+  } catch {}
+}
+
+async function _teResume(id) {
+  _teCleanup();
+  _teSessionId = id;
+  _teRunning = true;
+  _teSetButtonsEnabled(false);
+  _teAbortController = new AbortController();
+
+  const log = document.getElementById('teLog');
+  if (log) { log.style.display = 'block'; log.innerHTML = ''; }
+
+  try {
+    const res = await fetch(`/api/tasks/sessions/${id}/resume`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Session-Id': _sessionId },
+      signal: _teAbortController.signal,
+    });
+
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop() || '';
+      let eventType = null;
+      for (const line of lines) {
+        if (line.startsWith('event: ')) eventType = line.slice(7).trim();
+        else if (line.startsWith('data: ') && eventType) {
+          try { _teHandleEvent(eventType, JSON.parse(line.slice(6))); } catch {}
+          eventType = null;
+        }
+      }
+    }
+  } catch (err) {
+    if (err.name !== 'AbortError') _teAppendLog({ type: 'error', data: err.message });
+  }
+
+  _teRunning = false;
+  _teSetButtonsEnabled(true);
+  _teLoadSessions();
+}
+
+function _teTimeAgo(dateStr) {
+  if (!dateStr) return '';
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return 'just now';
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  const days = Math.floor(hrs / 24);
+  return `${days}d ago`;
 }

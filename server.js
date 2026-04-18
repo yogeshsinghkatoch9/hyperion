@@ -401,6 +401,12 @@ app.use('/api/webhooks', require('./routes/webhooks'));
 // ── AI Agent Chat ──
 app.use('/api/chat', require('./routes/chat'));
 
+// ── AI Context Bridge ──
+app.use('/api/context', require('./routes/contextBridge'));
+
+// ── Task Engine ──
+app.use('/api/tasks', require('./routes/taskEngine'));
+
 // ── Restore LLM settings from DB (if user configured via UI) ──
 try {
   const adminUser = db.prepare("SELECT id FROM users WHERE role = 'admin' LIMIT 1").get();
@@ -938,6 +944,21 @@ try {
   }
 } catch {}
 
+// ── Tier 4: Nightly failure analysis (3:00 AM) ──
+const _nightlyAnalysis = setInterval(() => {
+  const now = new Date();
+  if (now.getHours() === 3 && now.getMinutes() === 0) {
+    try {
+      const failureAnalyzer = require('./services/failureAnalyzer');
+      const strategyLibrary = require('./services/strategyLibrary');
+      failureAnalyzer.analyzeRecentFailures(db).then(results => {
+        if (results.length) logger.info('Nightly failure analysis complete', { strategies: results.length });
+      }).catch(() => {});
+      strategyLibrary.demoteFailingStrategies(db);
+    } catch {}
+  }
+}, 60 * 1000); // Check every minute
+
 // ── Session cleanup every 15 minutes ──
 const _sessionCleanup = setInterval(() => {
   try { sessionStore.cleanExpired(db); } catch {}
@@ -967,6 +988,7 @@ server.listen(PORT, () => {
 // ── Graceful Shutdown ──
 function gracefulShutdown(signal) {
   logger.info(`${signal} received, shutting down`);
+  clearInterval(_nightlyAnalysis);
   cronScheduler.stop();
   scheduledBackup.stop();
   metricsHistory.stop();

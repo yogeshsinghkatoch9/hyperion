@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hyperion — The most beautiful way to manage your server</title>
+    <meta name="description" content="Self-hosted admin panel with real-time monitoring, Docker management, browser terminal, file manager, and 55+ developer tools. 7 dependencies. No build step.">
+    <style>
+        :root {
+            --orange: #e8763a;
+            --orange-light: #f09a5e;
+            --bg: #0a0a0b;
+            --bg-card: #141416;
+            --bg-card-hover: #1a1a1e;
+            --text: #e4e4e7;
+            --text-muted: #8b8b94;
+            --border: #27272a;
+            --radius: 12px;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        .container {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 0 24px;
+        }
+
+        /* Nav */
+        nav {
+            padding: 20px 0;
+            border-bottom: 1px solid var(--border);
+        }
+        nav .container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .logo {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: var(--orange);
+            text-decoration: none;
+            letter-spacing: 2px;
+        }
+        .nav-links a {
+            color: var(--text-muted);
+            text-decoration: none;
+            margin-left: 32px;
+            font-size: 0.9rem;
+            transition: color 0.2s;
+        }
+        .nav-links a:hover { color: var(--text); }
+
+        /* Hero */
+        .hero {
+            padding: 100px 0 80px;
+            text-align: center;
+        }
+        .hero h1 {
+            font-size: clamp(2.5rem, 6vw, 4rem);
+            font-weight: 800;
+            line-height: 1.1;
+            margin-bottom: 20px;
+        }
+        .hero h1 span { color: var(--orange); }
+        .hero p {
+            font-size: 1.2rem;
+            color: var(--text-muted);
+            max-width: 600px;
+            margin: 0 auto 40px;
+        }
+
+        /* Install block */
+        .install-block {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 16px 24px;
+            display: inline-flex;
+            align-items: center;
+            gap: 16px;
+            font-family: 'SF Mono', 'Fira Code', monospace;
+            font-size: 0.95rem;
+            cursor: pointer;
+            transition: border-color 0.2s;
+            position: relative;
+        }
+        .install-block:hover { border-color: var(--orange); }
+        .install-block code { color: var(--orange-light); }
+        .install-block .copy-hint {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+        .install-block .copied {
+            position: absolute;
+            top: -32px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--orange);
+            color: #fff;
+            padding: 4px 12px;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            opacity: 0;
+            transition: opacity 0.2s;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+        .install-block .copied.show { opacity: 1; }
+
+        /* Screenshot placeholder */
+        .hero-screenshot {
+            margin: 60px auto 0;
+            max-width: 900px;
+            border-radius: var(--radius);
+            border: 1px solid var(--border);
+            overflow: hidden;
+            background: var(--bg-card);
+            aspect-ratio: 16/10;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-muted);
+            font-size: 1.1rem;
+        }
+        .hero-screenshot img {
+            width: 100%;
+            height: auto;
+            display: block;
+        }
+
+        /* Stats bar */
+        .stats {
+            padding: 40px 0;
+            border-bottom: 1px solid var(--border);
+        }
+        .stats .container {
+            display: flex;
+            justify-content: center;
+            gap: 60px;
+            flex-wrap: wrap;
+        }
+        .stat {
+            text-align: center;
+        }
+        .stat-value {
+            font-size: 1.8rem;
+            font-weight: 800;
+            color: var(--orange);
+        }
+        .stat-label {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            margin-top: 4px;
+        }
+
+        /* Features */
+        .features {
+            padding: 80px 0;
+        }
+        .features h2 {
+            text-align: center;
+            font-size: 2rem;
+            margin-bottom: 12px;
+        }
+        .features .subtitle {
+            text-align: center;
+            color: var(--text-muted);
+            margin-bottom: 48px;
+        }
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+        }
+        .feature-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 28px;
+            transition: border-color 0.2s, background 0.2s;
+        }
+        .feature-card:hover {
+            border-color: var(--orange);
+            background: var(--bg-card-hover);
+        }
+        .feature-icon {
+            font-size: 1.5rem;
+            margin-bottom: 12px;
+        }
+        .feature-card h3 {
+            font-size: 1.1rem;
+            margin-bottom: 8px;
+        }
+        .feature-card p {
+            color: var(--text-muted);
+            font-size: 0.9rem;
+            line-height: 1.5;
+        }
+
+        /* Why section */
+        .why {
+            padding: 80px 0;
+            border-top: 1px solid var(--border);
+        }
+        .why h2 {
+            text-align: center;
+            font-size: 2rem;
+            margin-bottom: 48px;
+        }
+        .comparison {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 40px;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        .comparison-col h3 {
+            font-size: 1rem;
+            margin-bottom: 16px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid var(--border);
+        }
+        .comparison-col h3.theirs { color: var(--text-muted); }
+        .comparison-col h3.ours { color: var(--orange); }
+        .comparison-col ul {
+            list-style: none;
+        }
+        .comparison-col ul li {
+            padding: 8px 0;
+            font-size: 0.9rem;
+            color: var(--text-muted);
+        }
+        .comparison-col ul li::before {
+            margin-right: 8px;
+        }
+        .theirs li::before { content: "~"; color: #555; }
+        .ours li::before { content: "~"; color: var(--orange); }
+
+        /* CTA */
+        .cta {
+            padding: 80px 0;
+            text-align: center;
+            border-top: 1px solid var(--border);
+        }
+        .cta h2 {
+            font-size: 2rem;
+            margin-bottom: 12px;
+        }
+        .cta p {
+            color: var(--text-muted);
+            margin-bottom: 32px;
+        }
+        .btn {
+            display: inline-block;
+            background: var(--orange);
+            color: #fff;
+            padding: 14px 32px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 1rem;
+            transition: opacity 0.2s;
+        }
+        .btn:hover { opacity: 0.9; }
+        .btn-secondary {
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--text);
+            margin-left: 12px;
+        }
+        .btn-secondary:hover {
+            border-color: var(--text-muted);
+        }
+
+        /* Footer */
+        footer {
+            padding: 40px 0;
+            border-top: 1px solid var(--border);
+            text-align: center;
+            color: var(--text-muted);
+            font-size: 0.85rem;
+        }
+        footer a {
+            color: var(--text-muted);
+            text-decoration: none;
+        }
+        footer a:hover { color: var(--text); }
+
+        @media (max-width: 640px) {
+            .comparison { grid-template-columns: 1fr; gap: 24px; }
+            .stats .container { gap: 32px; }
+            .nav-links { display: none; }
+        }
+    </style>
+</head>
+<body>
+
+<nav>
+    <div class="container">
+        <a href="#" class="logo">HYPERION</a>
+        <div class="nav-links">
+            <a href="#features">Features</a>
+            <a href="#why">Why Hyperion</a>
+            <a href="https://github.com/yogeshsinghkatoch9/hyperion" target="_blank">GitHub</a>
+            <a href="https://github.com/yogeshsinghkatoch9/hyperion/blob/main/docs/ARCHITECTURE.md" target="_blank">Docs</a>
+        </div>
+    </div>
+</nav>
+
+<section class="hero">
+    <div class="container">
+        <h1>The most beautiful way<br>to <span>manage your server</span></h1>
+        <p>Self-hosted admin panel with real-time monitoring, Docker management, browser terminal, file manager, and 55+ tools. One install. One tab.</p>
+
+        <div class="install-block" onclick="copyInstall(this)">
+            <code>curl -fsSL https://raw.githubusercontent.com/yogeshsinghkatoch9/hyperion/main/scripts/install.sh | bash</code>
+            <span class="copy-hint">Click to copy</span>
+            <span class="copied">Copied!</span>
+        </div>
+
+        <div class="hero-screenshot">
+            <!-- Replace with: <img src="screenshots/dashboard.png" alt="Hyperion Dashboard"> -->
+            Screenshot coming soon
+        </div>
+    </div>
+</section>
+
+<section class="stats">
+    <div class="container">
+        <div class="stat">
+            <div class="stat-value">7</div>
+            <div class="stat-label">Dependencies</div>
+        </div>
+        <div class="stat">
+            <div class="stat-value">55+</div>
+            <div class="stat-label">Built-in Tools</div>
+        </div>
+        <div class="stat">
+            <div class="stat-value">1,970+</div>
+            <div class="stat-label">Tests</div>
+        </div>
+        <div class="stat">
+            <div class="stat-value">&lt;2s</div>
+            <div class="stat-label">Startup Time</div>
+        </div>
+        <div class="stat">
+            <div class="stat-value">0</div>
+            <div class="stat-label">Build Steps</div>
+        </div>
+    </div>
+</section>
+
+<section class="features" id="features">
+    <div class="container">
+        <h2>Everything you need. One URL.</h2>
+        <p class="subtitle">Stop juggling 15 tools. Manage your server from a single browser tab.</p>
+
+        <div class="feature-grid">
+            <div class="feature-card">
+                <div class="feature-icon">&#x1f4ca;</div>
+                <h3>Real-time Dashboard</h3>
+                <p>CPU, RAM, disk, network with live sparklines and historical charts. Know exactly what your server is doing, always.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">&#x1f433;</div>
+                <h3>Docker Management</h3>
+                <p>Start, stop, restart, view logs, exec into containers. Full Docker Compose support. No more SSH-ing in to run docker commands.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">&#x1f4bb;</div>
+                <h3>Browser Terminal</h3>
+                <p>Full PTY terminal with tabs, split panes, and broadcast mode. SSH from your phone, tablet, or any browser.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">&#x1f4c1;</div>
+                <h3>File Manager</h3>
+                <p>Browse, edit, upload, download with drag-and-drop. Real-time file watching. No FTP setup needed.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">&#x1f916;</div>
+                <h3>AI Assistant</h3>
+                <p>Agentic chat that can run commands and manage infrastructure. Supports Ollama (free, local), Gemini, OpenAI, Claude, and Grok.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">&#x1f6e0;</div>
+                <h3>55+ Dev Tools</h3>
+                <p>HTTP client, Git UI, SSH manager, DB explorer, JWT debugger, regex tester, cron builder, and much more. All built-in.</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="why" id="why">
+    <div class="container">
+        <h2>Why Hyperion?</h2>
+
+        <div class="comparison">
+            <div class="comparison-col theirs">
+                <h3 class="theirs">The typical setup</h3>
+                <ul>
+                    <li>Portainer for Docker</li>
+                    <li>Grafana for monitoring</li>
+                    <li>Wetty for terminal</li>
+                    <li>FileBrowser for files</li>
+                    <li>Adminer for databases</li>
+                    <li>Postman for API testing</li>
+                    <li>5+ containers, 5+ ports, 5+ configs</li>
+                </ul>
+            </div>
+            <div class="comparison-col ours">
+                <h3 class="ours">Hyperion</h3>
+                <ul>
+                    <li>All of the above</li>
+                    <li>Plus 50 more tools</li>
+                    <li>One process, one port</li>
+                    <li>7 dependencies</li>
+                    <li>SQLite — zero config</li>
+                    <li>No build step</li>
+                    <li>MIT licensed, self-hosted, private</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="cta">
+    <div class="container">
+        <h2>Ready to simplify your server?</h2>
+        <p>Install in 30 seconds. No credit card. No cloud account. Just your machine.</p>
+        <a href="https://github.com/yogeshsinghkatoch9/hyperion" class="btn">View on GitHub</a>
+        <a href="https://github.com/yogeshsinghkatoch9/hyperion/blob/main/docs/ARCHITECTURE.md" class="btn btn-secondary">Read the Docs</a>
+    </div>
+</section>
+
+<footer>
+    <div class="container">
+        <p><a href="https://github.com/yogeshsinghkatoch9/hyperion">Hyperion</a> is open-source software under the MIT License.</p>
+    </div>
+</footer>
+
+<script>
+function copyInstall(el) {
+    const code = el.querySelector('code').textContent;
+    navigator.clipboard.writeText(code).then(() => {
+        const copied = el.querySelector('.copied');
+        copied.classList.add('show');
+        setTimeout(() => copied.classList.remove('show'), 1500);
+    });
+}
+</script>
+
+</body>
+</html>

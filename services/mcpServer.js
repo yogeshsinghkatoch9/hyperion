@@ -1,6 +1,6 @@
 /**
  * MCP Server — Model Context Protocol JSON-RPC server
- * Exposes Hyperion tools (terminal, files, agents, code, search) as MCP tools.
+ * Exposes Hyperion tools (terminal, files, agents, code, search, context) as MCP tools.
  * Runs on configurable port, opt-in via MCP_ENABLED=true.
  */
 
@@ -71,7 +71,64 @@ const TOOLS = [
       required: ['query'],
     },
   },
+  // ── Context Bridge Tools ──
+  {
+    name: 'get_server_context',
+    description: 'Get a full server context snapshot with system, docker, health, cron, metrics, network info. Use this to understand the current state of the server.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        format: { type: 'string', enum: ['json', 'markdown', 'compact'], description: 'Output format (default: markdown)' },
+        sections: {
+          type: 'array', items: { type: 'string' },
+          description: 'Sections to include: system, docker, processes, network, health, cron, metrics, runtimes, errors. Omit for all.',
+        },
+      },
+    },
+  },
+  {
+    name: 'get_docker_status',
+    description: 'Get Docker container status including resource stats (CPU, memory, network I/O)',
+    inputSchema: { type: 'object', properties: {} },
+  },
+  {
+    name: 'get_system_health',
+    description: 'Run health checks on database, API latency, memory, CPU, and disk',
+    inputSchema: { type: 'object', properties: {} },
+  },
+  {
+    name: 'get_recent_errors',
+    description: 'Get recent ERROR-level log lines from the server',
+    inputSchema: { type: 'object', properties: {} },
+  },
+  {
+    name: 'get_listening_ports',
+    description: 'List all open/listening ports with the process that owns each port',
+    inputSchema: { type: 'object', properties: {} },
+  },
+  {
+    name: 'get_cron_jobs',
+    description: 'List scheduled cron jobs with their schedules and descriptions',
+    inputSchema: { type: 'object', properties: {} },
+  },
 ];
+
+// ── Context Bridge imports (lazy-loaded) ──
+let _contextBridge = null;
+let _monitorSvc = null;
+let _dockerSvc = null;
+let _healthCheck = null;
+let _cronSvc = null;
+
+function _loadContextDeps() {
+  if (!_contextBridge) {
+    _contextBridge = require('./contextBridge');
+    _monitorSvc = require('./monitor');
+    _dockerSvc = require('./docker');
+    _healthCheck = require('./healthCheck');
+    _cronSvc = require('./cron');
+  }
+}
 
 // ── Tool Handlers ──
 async function handleToolCall(name, args) {
@@ -130,8 +187,105 @@ async function handleToolCall(name, args) {
         .all(`%${args.query}%`);
       return { commands, agents };
     }
+
+    // ── Context Bridge Tool Handlers ──
+    case 'get_server_context': {
+      _loadContextDeps();
+      const opts = {};
+      if (args.sections) opts.sections = args.sections;
+      const ctx = await _contextBridge.generateContext(_db, opts);
+      const fmt = args.format || 'markdown';
+      if (fmt === 'markdown') return _contextBridge.formatAsMarkdown(ctx);
+      if (fmt === 'compact') return _contextBridge.formatCompact(ctx);
+      return ctx;
+    }
+    case 'get_docker_status': {
+      _loadContextDeps();
+      try {
+        if (!_dockerSvc.isDockerAvailable()) return { available: false };
+        const containers = _dockerSvc.listContainers(true);
+        const stats = _dockerSvc.getAllStats();
+        const statsMap = {};
+        for (const s of stats) statsMap[s.name] = s;
+        return {
+          available: true,
+          containers: containers.map(c => ({
+            name: c.name, image: c.image, state: c.state, status: c.status,
+            stats: statsMap[c.name] || null,
+          })),
+        };
+      } catch (err) { return { error: err.message }; }
+    }
+    case 'get_system_health': {
+      _loadContextDeps();
+      if (!_db) return { error: 'Database not available' };
+      return _healthCheck.runChecks(_db);
+    }
+    case 'get_recent_errors': {
+      _loadContextDeps();
+      const logViewer = require('./logViewer');
+      const paths = logViewer.getCommonLogPaths();
+      const errors = [];
+      for (const dir of paths.slice(0, 3)) {
+        try {
+          const files = logViewer.findLogFiles(dir, { maxDepth: 2 });
+          for (const f of files.slice(0, 5)) {
+            try {
+              const result = logViewer.readLogFile(f.path, { lines: 100, level: 'error' });
+              for (const line of result.lines.slice(-5)) {
+                errors.push({ text: line.text.slice(0, 200), source: f.name });
+              }
+            } catch {}
+          }
+          if (errors.length >= 10) break;
+        } catch {}
+      }
+      return errors.slice(0, 10);
+    }
+    case 'get_listening_ports': {
+      _loadContextDeps();
+      return _monitorSvc.getListeningPorts();
+    }
+    case 'get_cron_jobs': {
+      _loadContextDeps();
+      return _cronSvc.listCrontab().filter(j => j.type === 'job');
+    }
+
     default:
       return { error: `Unknown tool: ${name}` };
+  }
+}
+
+// ── MCP Resources ──
+const RESOURCES = [
+  {
+    uri: 'server://context',
+    name: 'Server Context',
+    description: 'Full server context snapshot including system, docker, health, network, cron, and metrics',
+    mimeType: 'text/markdown',
+  },
+  {
+    uri: 'server://health',
+    name: 'Server Health',
+    description: 'Current health check results for database, API, memory, CPU, and disk',
+    mimeType: 'application/json',
+  },
+];
+
+async function handleResourceRead(uri) {
+  _loadContextDeps();
+  switch (uri) {
+    case 'server://context': {
+      const ctx = await _contextBridge.generateContext(_db, {});
+      return { contents: [{ uri, mimeType: 'text/markdown', text: _contextBridge.formatAsMarkdown(ctx) }] };
+    }
+    case 'server://health': {
+      if (!_db) return { contents: [{ uri, mimeType: 'application/json', text: JSON.stringify({ error: 'Database not available' }) }] };
+      const health = _healthCheck.runChecks(_db);
+      return { contents: [{ uri, mimeType: 'application/json', text: JSON.stringify(health, null, 2) }] };
+    }
+    default:
+      throw new Error(`Unknown resource: ${uri}`);
   }
 }
 
@@ -145,7 +299,7 @@ async function handleRequest(body) {
         jsonrpc: '2.0', id,
         result: {
           protocolVersion: '2024-11-05',
-          capabilities: { tools: {} },
+          capabilities: { tools: {}, resources: {} },
           serverInfo: { name: 'hyperion', version: '1.0.0' },
         },
       };
@@ -157,15 +311,29 @@ async function handleRequest(body) {
       const { name, arguments: args } = params || {};
       try {
         const result = await handleToolCall(name, args || {});
+        const text = typeof result === 'string' ? result : JSON.stringify(result, null, 2);
         return {
           jsonrpc: '2.0', id,
-          result: { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] },
+          result: { content: [{ type: 'text', text }] },
         };
       } catch (err) {
         return {
           jsonrpc: '2.0', id,
           result: { content: [{ type: 'text', text: `Error: ${err.message}` }], isError: true },
         };
+      }
+    }
+
+    case 'resources/list':
+      return { jsonrpc: '2.0', id, result: { resources: RESOURCES } };
+
+    case 'resources/read': {
+      const { uri } = params || {};
+      try {
+        const result = await handleResourceRead(uri);
+        return { jsonrpc: '2.0', id, result };
+      } catch (err) {
+        return { jsonrpc: '2.0', id, error: { code: -32602, message: err.message } };
       }
     }
 
